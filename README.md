@@ -1,1 +1,1 @@
-# homework-06: otus-bulk
+# homework-08: otus-08-async
