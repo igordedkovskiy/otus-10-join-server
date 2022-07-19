@@ -1,4 +1,4 @@
-name: 'bulk'
+name: 'async'
 
 on:
   push:
@@ -15,11 +15,12 @@ jobs:
           submodules: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - run: sudo apt install gcc-11 g++-11
       - run: cmake -S . -B ./Release -DPATCH_VERSION=${{ github.run_number }} -DWITH_GTEST=ON
         shell: bash
         env:
-          CC:   gcc-10
-          CXX:  g++-10
+          CC:   gcc-11
+          CXX:  g++-11
       - run: cmake --build ./Release
       - run: cmake --build ./Release --target test
       - run: cmake --build ./Release --target package
@@ -40,8 +41,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./Release/bulk-0.0.${{ github.run_number }}-Linux.deb
-          asset_name: bulk-0.0.${{ github.run_number }}-Linux.deb
+          asset_path: ./Release/async-0.0.${{ github.run_number }}-Linux.deb
+          asset_name: async-0.0.${{ github.run_number }}-Linux.deb
           asset_content_type: application/vnd.debian.binary-package
   generate-docs:
     needs: build

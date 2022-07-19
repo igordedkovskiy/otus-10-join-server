@@ -6,13 +6,12 @@
 #include "CmdCollector.hpp"
 #include "read_input.hpp"
 
-TEST(TEST_BULK, task_example)
+TEST(TEST_ASYNC, task_example)
 {
     CmdCollector commands{3};
 
     auto print = [&commands](std::stringstream& out)
     {
-        std::stringstream fname;
         out << "bulk: ";
         std::size_t cntr = 0;
         for(const auto& cmd:commands.get_cmd())

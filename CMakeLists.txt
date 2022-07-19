@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.2)
 set(PATCH_VERSION "2" CACHE INTERNAL "Patch version")
 set(PROJECT_VERSION 0.0.${PATCH_VERSION})
 
-project(bulk VERSION ${PROJECT_VERSION})
+project(async VERSION ${PROJECT_VERSION})
 
 option(WITH_GTEST "Whether to build google test" ON)
 
@@ -15,7 +15,7 @@ add_executable(${PROJECT_NAME}
     "read_input.hpp"
     "generator.hpp"
 )
-add_library(bulk_lib
+add_library(async_lib
     "CmdCollector.hpp"
     "CmdCollector.cpp"
     "read_input.hpp"
@@ -28,17 +28,17 @@ set_target_properties(${PROJECT_NAME} PROPERTIES
     CXX_STANDARD_REQUIRED ON
 )
 
-set_target_properties(bulk_lib PROPERTIES
+set_target_properties(async_lib PROPERTIES
     CXX_STANDARD 20
     CXX_STANDARD_REQUIRED ON
 )
 
-target_include_directories(bulk_lib
+target_include_directories(async_lib
     PRIVATE "${CMAKE_BINARY_DIR}"
 )
 
 target_link_libraries(${PROJECT_NAME} PRIVATE
-    bulk_lib
+    async_lib
 )
 
 find_package(Git QUIET)
@@ -73,14 +73,14 @@ endif()
 
 if(WITH_GTEST)
     add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/googletest" "googletest")
-    add_executable(test_bulk "test.cpp")
+    add_executable(test_async "test.cpp")
 
-    target_include_directories(test_bulk PRIVATE
+    target_include_directories(test_async PRIVATE
         ${GTEST_INCLUDE_DIRS}
         "${CMAKE_CURRENT_SOURCE_DIR}/src"
     )
 
-    set_target_properties(test_bulk PROPERTIES
+    set_target_properties(test_async PROPERTIES
         CXX_STANDARD 20
         CXX_STANDARD_REQUIRED ON
     )
@@ -90,11 +90,11 @@ if(WITH_GTEST)
 #        $<$<CONFIG:Release>:RELEASE_VER>
 #    )
 
-    target_link_libraries(test_bulk PRIVATE
+    target_link_libraries(test_async PRIVATE
         ${GTEST_BOTH_LIBRARIES}
         gtest
         gtest_main
-        bulk_lib
+        async_lib
     )
 endif()
 
@@ -102,11 +102,11 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     target_compile_options(${PROJECT_NAME} PRIVATE
         /W4 /await
     )
-    target_compile_options(bulk_lib PRIVATE
+    target_compile_options(async_lib PRIVATE
         /W4 /await
     )
     if(WITH_GTEST)
-        target_compile_options(test_bulk PRIVATE
+        target_compile_options(test_async PRIVATE
             /W4 /await
         )
     endif()
@@ -114,11 +114,11 @@ elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     target_compile_options(${PROJECT_NAME} PRIVATE
         "-Wall" "-Wextra" "-Werror" "-pedantic" "-fcoroutines"
     )
-    target_compile_options(bulk_lib PRIVATE
+    target_compile_options(async_lib PRIVATE
         "-Wall" "-Wextra" "-Werror" "-pedantic" "-fcoroutines"
     )
     if(WITH_GTEST)
-        target_compile_options(test_bulk PRIVATE
+        target_compile_options(test_async PRIVATE
             "-Wall" "-Wextra" "-Werror" "-pedantic" "-fcoroutines"
         )
     endif()
@@ -136,5 +136,5 @@ include(CPack)
 if(WITH_GTEST)
     include(CTest)
     enable_testing()
-    add_test(test test_bulk)
+    add_test(test test_async)
 endif()
