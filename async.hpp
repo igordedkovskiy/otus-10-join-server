@@ -1,11 +1,16 @@
-// homework #8
+#pragma once
 
-#include <vector>
-#include <string>
+#include <cstdint>
 
-using handler_t = long long;
-using commands_t = std::vector<std::string>;
+extern "C"
+{
 
-handler_t connect(std::size_t in_size);
-void disconnect(handler_t h);
-void receive(handler_t h, commands_t& commands);
+using size_type = std::size_t;
+using handler_t = size_type;
+using commands_t = char**;
+
+handler_t connect(size_type bulk_size);
+int disconnect(handler_t h);
+void receive(handler_t h, commands_t commands, size_type& num_of_commands);
+
+}

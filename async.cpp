@@ -26,14 +26,14 @@ struct Handlers
         return -1;
     }
 
-    handler_t add(CmdCollector&& collector)
+    handler_t create(CmdCollector&& collector)
     {
         const auto h{find_free()};
         if(h < 0)
         {
             m_streams.emplace_back(std::move(collector));
             m_free.emplace_back(false);
-            return static_cast<decltype(handler_t)>(m_streams.size());
+            return m_streams.size();
         }
         else
         {
@@ -43,7 +43,17 @@ struct Handlers
         return h;
     }
 
-    std::vector<handler_t, CmdCollector> m_streams;
+    void destroy(handler_t h)
+    {
+        h++;
+    }
+
+    size_type size() const noexcept
+    {
+        return m_streams.size();
+    }
+
+    std::vector<CmdCollector> m_streams;
     std::vector<bool> m_free;
 };
 
@@ -51,37 +61,51 @@ Handlers handlers;
 
 }
 
-
-handler_t connect(std::size_t in_size)
+extern "C"
 {
-    return handlers.add(CmdCollector{in_size});
+handler_t connect(size_type bulk_size)
+{
+    return handlers.create(CmdCollector{bulk_size});
 }
 
-void disconnect(handler_t commands)
+int disconnect(handler_t h)
 {
-    commands.finish_block();
+//    commands.finish_block();
+    return h++;
 }
 
-void receive(handler_t h, commands_t& commands)
+void receive(handler_t h, commands_t commands, size_type& num_of_commands)
 {
-    auto process = [&commands, &context](std::string&& read)
-    {
-        context.process_cmd(std::move(read));
-        read.clear();
-        if(context.input_block_finished())
-        {
-            for(const auto& cmd:commands.get_cmd())
-                commands.push_back(cmd);
-            commands.clear_commands();
-        }
-    };
+//    auto process = [&commands, &context](std::string&& read)
+//    {
+//        context.process_cmd(std::move(read));
+//        read.clear();
+//        if(context.input_block_finished())
+//        {
+//            for(const auto& cmd:commands.get_cmd())
+//                commands.push_back(cmd);
+//            commands.clear_commands();
+//        }
+//    };
 
-    read_input<decltype(process), CmdCollector::ParseErr>(std::cin, std::cerr, process);
-    context.finish_block();
-    if(context.input_block_finished())
+//    read_input<decltype(process), CmdCollector::ParseErr>(std::cin, std::cerr, process);
+//    context.finish_block();
+//    if(context.input_block_finished())
+//    {
+//        for(const auto& cmd:commands.get_cmd())
+//            commands.push_back(cmd);
+//        commands.clear_commands();
+//    }
+
+    num_of_commands = handlers.size();
+    commands_t cmds = new char*[num_of_commands];
+    size_type index{0};
+    for(const auto& cmd:handlers.get(h).get_cmd())
     {
-        for(const auto& cmd:commands.get_cmd())
-            commands.push_back(cmd);
-        commands.clear_commands();
+        cmds[index] = new char[cmd.size() + 1];
+        strcopy(cmds[index], cmd.get(h).c_str());
+        ++index;
     }
+}
+
 }
