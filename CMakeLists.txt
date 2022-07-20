@@ -11,9 +11,6 @@ configure_file(version.h.in version.h)
 
 add_executable(${PROJECT_NAME}
     "main.cpp"
-    "CmdCollector.hpp"
-    "read_input.hpp"
-    "generator.hpp"
 )
 add_library(async_lib
     "CmdCollector.hpp"
