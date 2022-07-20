@@ -65,6 +65,7 @@ void CmdCollector::process_cmd(std::string &&cmd)
     }
 }
 
+
 time_t CmdCollector::block_start_time([[maybe_unused]] std::size_t number) const noexcept
 {
     return m_time;

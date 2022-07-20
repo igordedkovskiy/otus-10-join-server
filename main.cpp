@@ -1,4 +1,4 @@
-// homework #6: command processing (bulk).
+// homework #8: async command processing (bulk).
 
 #include <iostream>
 #include <sstream>

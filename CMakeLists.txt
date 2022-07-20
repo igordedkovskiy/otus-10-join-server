@@ -13,6 +13,8 @@ add_executable(${PROJECT_NAME}
     "main.cpp"
 )
 add_library(async_lib
+    "async.hpp"
+    "async.cpp"
     "CmdCollector.hpp"
     "CmdCollector.cpp"
     "read_input.hpp"
