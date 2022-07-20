@@ -11,7 +11,6 @@ CmdCollector::CmdCollector(std::size_t N):
 bool CmdCollector::input_block_finished() const noexcept
 {
     return m_block_finished;
-    //return input_processor->input_block_finished();
 }
 
 void CmdCollector::finish_block() noexcept
@@ -34,9 +33,6 @@ bool CmdCollector::remaining_data_valid() const noexcept
 
 void CmdCollector::process_cmd(std::string &&cmd)
 {
-    //input_processor = on_new_cmd(cmd);
-    //input_processor->process_cmd(cmd);
-
     if(cmd == "{")
     {
         m_type = InputType::DYNAMIC;
@@ -96,74 +92,7 @@ void CmdCollector::reset() noexcept
 
 generator<std::string> CmdCollector::get_cmd() const
 {
-//    if(type == InputType::DYNAMIC)
-//    {
-//        if(!m_block_finished)
-//            co_return;
-//    }
     for(const auto& cmd:m_cmds)
         co_yield cmd;
-    //input_processor->get_cmd();
 }
 
-//InputType* on_new_cmd(const std::string& cmd)
-//{
-//    if(cmd == "{")
-//    {
-//        delete input_processor;
-//        input_processor = new Dynamic;
-//    }
-//    else if(cmd == "}" and --m_braces == 0)
-//    {
-//        delete input_processor;
-//        input_processor = new Static;
-//    }
-//    return input_processor;
-//}
-
-//generator<std::string> CmdProcessor::InputType::get_cmd() const
-//{
-//    for(const auto& cmd:m_cmds)
-//        co_yield cmd;
-//}
-
-//void CmdProcessor::Static::process_cmd(std::string &&cmd)
-//{
-//    m_cmds.emplace_back(std::move(cmd));
-//    if(m_cmds.size() == 1)
-//        m_time = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
-//    if(m_cmds.size() == m_capacity)
-//        m_block_finished = true;
-//}
-
-//void CmdProcessor::Static::finish_input() noexcept override
-//{
-//    ;
-//}
-
-//generator<std::string> CmdProcessor::Dynamic::get_cmd() const
-//{
-//    if(m_block_finished)
-//        return InputType::get_cmd();
-//}
-
-//void CmdProcessor::Dynamic::process_cmd(std::string &&cmd)
-//{
-//    if(cmd == "{")
-//    {
-//        ++m_braces;
-//    }
-//    else if(cmd == "}")
-//    {
-//        if(m_braces == 0)
-//            throw 1;
-//        if(--m_braces == 0)
-//            m_dyn_block_finished = true;
-//    }
-//    else
-//    {
-//        m_cmds.emplace_back(std::move(cmd));
-//        if(m_cmds.size() == 1)
-//            m_time = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
-//    }
-//}

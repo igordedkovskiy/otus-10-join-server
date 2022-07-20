@@ -9,9 +9,6 @@
 
 int main()
 {
-    //CmdProcessor commands;
-    //commands.process_input(std::cin);
-
     CmdCollector commands{read_input_size(std::cin, std::cerr)};
 
     auto print = [&commands]()
@@ -48,7 +45,6 @@ int main()
 
     read_input<decltype(process), CmdCollector::ParseErr>(std::cin, std::cerr, process);
     commands.finish_block();
-    //if(commands.remaining_data_valid())
     if(commands.input_block_finished())
         print();
     return 0;

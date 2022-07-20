@@ -42,25 +42,6 @@ public:
     generator<std::string> get_cmd() const;
 
 private:
-//    InputType* on_new_cmd(const std::string& cmd);
-//    struct InputType
-//    {
-//        virtual ~InputType() noexcept = 0;
-//        virtual void process_cmd(std::string&& cmd) = 0;
-//        virtual void finish_input() noexcept {}
-//        virtual generator<std::string> get_cmd() const;
-//    };
-//    struct Static: public InputType
-//    {
-//        void process_cmd(std::string&& cmd) override;
-//        void finish_input() noexcept;
-//    };
-//    struct Dynamic: public InputType
-//    {
-//        generator<std::string> get_cmd() const override;
-//        void process_cmd(std::string&& cmd) override;
-//    };
-
     enum class InputType { STATIC, DYNAMIC };
 
     InputType m_type{InputType::STATIC};
