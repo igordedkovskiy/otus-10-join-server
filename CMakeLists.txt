@@ -49,7 +49,7 @@ if(WITH_GTEST)
         find_package(Git REQUIRED)
         if(GIT_FOUND AND EXISTS "${PROJECT_SOURCE_DIR}/.git")
             # Update submodules as needed
-            message(STATUS "Git is not found")
+            message(STATUS "Git is found")
             if(GIT_SUBMODULE)
                 message(STATUS "Submodules: add")
 
@@ -86,6 +86,7 @@ endif()
 if(WITH_GTEST)
     if(NOT GTest_FOUND)
         add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/googletest" "googletest")
+        message(STATUS "Add googletest subdirectory")
     endif()
     add_executable(test_async "test.cpp")
 
