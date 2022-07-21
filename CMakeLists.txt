@@ -6,6 +6,7 @@ set(PROJECT_VERSION 0.0.${PATCH_VERSION})
 project(async VERSION ${PROJECT_VERSION})
 
 option(WITH_GTEST "Whether to build google test" ON)
+option(GIT_SUBMODULE "Check submodules during build" ON)
 
 configure_file(version.h.in version.h)
 
@@ -49,7 +50,6 @@ if(WITH_GTEST)
         if(GIT_FOUND AND EXISTS "${PROJECT_SOURCE_DIR}/.git")
             # Update submodules as needed
             message(STATUS "Git is not found")
-            option(GIT_SUBMODULE "Check submodules during build" ON)
             if(GIT_SUBMODULE)
                 message(STATUS "Submodules: add")
 
