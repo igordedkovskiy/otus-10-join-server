@@ -107,8 +107,8 @@ if(WITH_GTEST)
 
     target_link_libraries(test_async PRIVATE
         ${GTEST_BOTH_LIBRARIES}
-#        gtest
-#        gtest_main
+        gtest
+        gtest_main
         async_lib
     )
 endif()
