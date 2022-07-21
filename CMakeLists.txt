@@ -42,13 +42,16 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
 
 if(WITH_GTEST)
     find_package(GTest QUIET)
-    if(NOT GTest_FOUND)
-        find_package(Git QUIET)
+    if(GTest_FOUND)
+        message(STATUS "GTest is found")
+    else()
+        find_package(Git REQUIRED)
         if(GIT_FOUND AND EXISTS "${PROJECT_SOURCE_DIR}/.git")
             # Update submodules as needed
+            message(STATUS "Git is not found")
             option(GIT_SUBMODULE "Check submodules during build" ON)
             if(GIT_SUBMODULE)
-                message(STATUS "Submodules: add and update")
+                message(STATUS "Submodules: add")
 
                 if(WITH_GTEST)
                     if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/googletest")
@@ -65,6 +68,7 @@ if(WITH_GTEST)
                     endif()
                 endif()
 
+                message(STATUS "Submodules: update")
                 execute_process(COMMAND ${GIT_EXECUTABLE} submodule update --init --recursive
                                 WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
                                 RESULT_VARIABLE GIT_SUBMOD_RESULT)
@@ -76,8 +80,6 @@ if(WITH_GTEST)
                 endif()
             endif()
         endif()
-    else()
-        message(STATUS "GTest is found")
     endif()
 endif()
 
