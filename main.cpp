@@ -1,9 +1,5 @@
 // homework #8: async command processing (bulk).
 
-#include <iostream>
-#include <sstream>
-#include <fstream>
-
 #include "async.hpp"
 
 int main()
