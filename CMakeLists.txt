@@ -40,43 +40,56 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     async_lib
 )
 
-find_package(Git QUIET)
-if(GIT_FOUND AND EXISTS "${PROJECT_SOURCE_DIR}/.git")
-    # Update submodules as needed
-    option(GIT_SUBMODULE "Check submodules during build" ON)
-    if(GIT_SUBMODULE)
-        message(STATUS "Submodules: add and update")
+if(WITH_GTEST)
+    find_package(GTest QUIET)
+    if(NOT GTest_FOUND)
+        find_package(Git QUIET)
+        if(GIT_FOUND AND EXISTS "${PROJECT_SOURCE_DIR}/.git")
+            # Update submodules as needed
+            option(GIT_SUBMODULE "Check submodules during build" ON)
+            if(GIT_SUBMODULE)
+                message(STATUS "Submodules: add and update")
 
-        if(WITH_GTEST)
-            if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/googletest")
-                execute_process(COMMAND ${GIT_EXECUTABLE}
-                                submodule add https://github.com/google/googletest.git googletest
+                if(WITH_GTEST)
+                    if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/googletest")
+                        execute_process(COMMAND ${GIT_EXECUTABLE}
+                                        submodule add https://github.com/google/googletest.git googletest
+                                        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+                                        RESULT_VARIABLE GIT_SUBMOD_RESULT)
+                        if(NOT GIT_SUBMOD_RESULT EQUAL "0")
+                            message(FATAL_ERROR "git submodule add https://github.com/google/googletest.git googletest failed
+                                    with ${GIT_SUBMOD_RESULT}, please checkout submodules")
+                        else()
+                            message(STATUS "GTest submodule added")
+                        endif()
+                    endif()
+                endif()
+
+                execute_process(COMMAND ${GIT_EXECUTABLE} submodule update --init --recursive
                                 WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
                                 RESULT_VARIABLE GIT_SUBMOD_RESULT)
                 if(NOT GIT_SUBMOD_RESULT EQUAL "0")
-                    message(FATAL_ERROR "git submodule add https://github.com/google/googletest.git googletest failed
+                    message(FATAL_ERROR "git submodule update --init --recursive failed
                             with ${GIT_SUBMOD_RESULT}, please checkout submodules")
+                else()
+                    message(STATUS "Submodules updated")
                 endif()
             endif()
         endif()
-
-        execute_process(COMMAND ${GIT_EXECUTABLE} submodule update --init --recursive
-                        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-                        RESULT_VARIABLE GIT_SUBMOD_RESULT)
-        if(NOT GIT_SUBMOD_RESULT EQUAL "0")
-            message(FATAL_ERROR "git submodule update --init --recursive failed
-                    with ${GIT_SUBMOD_RESULT}, please checkout submodules")
-        endif()
+    else()
+        message(STATUS "GTest is found")
     endif()
 endif()
 
 if(WITH_GTEST)
-    add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/googletest" "googletest")
+    if(NOT GTest_FOUND)
+        add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/googletest" "googletest")
+    endif()
     add_executable(test_async "test.cpp")
 
     target_include_directories(test_async PRIVATE
         ${GTEST_INCLUDE_DIRS}
-        "${CMAKE_CURRENT_SOURCE_DIR}/src"
+#        "${CMAKE_CURRENT_SOURCE_DIR}/src"
     )
 
     set_target_properties(test_async PROPERTIES
@@ -91,8 +104,8 @@ if(WITH_GTEST)
 
     target_link_libraries(test_async PRIVATE
         ${GTEST_BOTH_LIBRARIES}
-        gtest
-        gtest_main
+#        gtest
+#        gtest_main
         async_lib
     )
 endif()
