@@ -79,7 +79,7 @@ void receive(handler_t h, commands_t commands, size_type num_of_commands)
     auto print = [h, &cmd_collector]()
     {
         std::stringstream fname;
-        fname << "bulk" << cmd_collector.block_start_time(0) << '-' << h << ".log";
+        fname << h << "-bulk" << cmd_collector.block_start_time(0) << '-' << cmd_collector.block_id() << ".log";
         std::fstream file{fname.str(), std::fstream::out | std::fstream::app};
         file << "bulk: ";
         std::cout << "bulk: ";

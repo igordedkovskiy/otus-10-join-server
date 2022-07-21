@@ -129,30 +129,30 @@ TEST(TEST_ASYNC, test_lib)
         return fnames;
     };
 
-    const auto fname1{find_file("(bulk.*-1.log)")};
-    ASSERT_FALSE(fname1.empty());
-    std::stringstream ref1{"bulk: cmd1, cmd2, cmd3\n"
-                           "bulk: cmd4, cmd5\n"};
-    for(const auto& fname:fname1)
+    auto check = [&find_file](std::stringstream ref, std::string masks)
     {
-        std::fstream file1{fname, std::fstream::in};
-        std::stringstream out1;
-        out1 << file1.rdbuf();
-        ASSERT_TRUE(out1.str() == ref1.str());
-    }
+        const auto fname{find_file(std::move(masks))};
+        if(fname.empty())
+            return false;
+        for(const auto& fn:fname)
+        {
+            std::fstream file{fn, std::fstream::in};
+            std::stringstream out;
+            out << file.rdbuf();
+            if(out.str() != ref.str())
+                return false;
+        }
+        return true;
+    };
 
-    const auto fname2{find_file("(bulk.*-2.log)")};
-    ASSERT_FALSE(fname2.empty());
-    std::stringstream ref2{"bulk: cmd1, cmd2\n"
-                           "bulk: cmd3, cmd4\n"
-                           "bulk: cmd5, cmd6, cmd7, cmd8, cmd9\n"};
-    for(const auto& fname:fname2)
-    {
-        std::fstream file2{fname, std::fstream::in};
-        std::stringstream out2;
-        out2 << file2.rdbuf();
-        ASSERT_TRUE(out2.str() == ref2.str());
-    }
+    // context 1
+    ASSERT_TRUE(check(std::stringstream{"bulk: cmd1, cmd2, cmd3\n"}, std::string{"(1-bulk.*-1.log)"}));
+    ASSERT_TRUE(check(std::stringstream{"bulk: cmd4, cmd5\n"}, std::string{"(1-bulk.*-2.log)"}));
+
+    // context 2
+    ASSERT_TRUE(check(std::stringstream{"bulk: cmd1, cmd2\n"}, std::string{"(2-bulk.*-1.log)"}));
+    ASSERT_TRUE(check(std::stringstream{"bulk: cmd3, cmd4\n"}, std::string{"(2-bulk.*-2.log)"}));
+    ASSERT_TRUE(check(std::stringstream{"bulk: cmd5, cmd6, cmd7, cmd8, cmd9\n"}, std::string{"(2-bulk.*-3.log)"}));
 }
 
 int main(int argc, char** argv)

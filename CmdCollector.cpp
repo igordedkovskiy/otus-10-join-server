@@ -56,7 +56,10 @@ void CmdCollector::process_cmd(std::string &&cmd)
     {
         m_cmds.emplace_back(std::move(cmd));
         if(m_cmds.size() == 1)
-            m_time = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+        {
+            m_cur_block_time = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+            ++m_cur_block_id;
+        }
         if(m_braces == 0)
         {
             if(m_cmds.size() == m_capacity)
@@ -68,7 +71,12 @@ void CmdCollector::process_cmd(std::string &&cmd)
 
 time_t CmdCollector::block_start_time([[maybe_unused]] std::size_t number) const noexcept
 {
-    return m_time;
+    return m_cur_block_time;
+}
+
+std::size_t CmdCollector::block_id() const noexcept
+{
+    return m_cur_block_id;
 }
 
 void CmdCollector::set_block_max_size(std::size_t N)
@@ -79,7 +87,7 @@ void CmdCollector::set_block_max_size(std::size_t N)
 
 void CmdCollector::clear_commands() noexcept
 {
-    m_time = 0;
+    m_cur_block_time = 0;
     m_cmds.clear();
     m_block_finished = false;
 }

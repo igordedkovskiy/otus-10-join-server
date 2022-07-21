@@ -32,6 +32,7 @@ public:
     void process_cmd(std::string&& cmd);
 
     time_t block_start_time([[maybe_unused]] std::size_t number) const noexcept;
+    std::size_t block_id() const noexcept;
 
     void set_block_max_size(std::size_t N);
 
@@ -48,6 +49,9 @@ private:
     bool m_block_finished{false};
     std::size_t m_capacity{0};
     std::size_t m_braces{0};
-    std::time_t m_time;
+
+    std::time_t m_cur_block_time;
+    std::size_t m_cur_block_id{0};
+
     std::vector<std::string> m_cmds;
 };
