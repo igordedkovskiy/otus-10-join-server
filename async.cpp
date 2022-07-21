@@ -3,6 +3,8 @@
 #include <iostream>
 #include <sstream>
 #include <fstream>
+#include <vector>
+#include <list>
 #include <unordered_map>
 
 #include "async.hpp"
@@ -14,38 +16,20 @@ namespace
 
 struct Handlers
 {
-    handler_t find_free() const
-    {
-        handler_t cntr{0};
-        for(auto f:m_free)
-        {
-            if(f)
-                return cntr;
-            ++cntr;
-        }
-        return -1;
-    }
-
     handler_t create(CmdCollector&& collector)
     {
-        const auto h{find_free()};
-        if(h < 0)
-        {
-            m_streams.emplace_back(std::move(collector));
-            m_free.emplace_back(false);
-            return m_streams.size();
-        }
-        else
-        {
-            m_streams[h] = std::move(collector);
-            m_free[h] = false;
-        }
-        return h;
+        m_last = !m_streams.empty() ? m_last + 1 : 1;
+        m_streams.insert(std::make_pair(m_last, std::move(collector)));
+        return m_last;
     }
 
     void destroy(handler_t h)
     {
-        h++;
+        auto el{m_streams.find(h)};
+        if(el != std::end(m_streams))
+            m_streams.erase(el);
+        if(h == m_last)
+            --m_last;
     }
 
     size_type size() const noexcept
@@ -53,8 +37,8 @@ struct Handlers
         return m_streams.size();
     }
 
-    std::vector<CmdCollector> m_streams;
-    std::vector<bool> m_free;
+    std::unordered_map<handler_t, CmdCollector> m_streams;
+    handler_t m_last{std::numeric_limits<handler_t>::max()};
 };
 
 Handlers handlers;
@@ -63,6 +47,7 @@ Handlers handlers;
 
 extern "C"
 {
+
 handler_t connect(size_type bulk_size)
 {
     return handlers.create(CmdCollector{bulk_size});
@@ -70,42 +55,64 @@ handler_t connect(size_type bulk_size)
 
 int disconnect(handler_t h)
 {
-//    commands.finish_block();
-    return h++;
+    handlers.destroy(h);
+    return 1;
 }
 
-void receive(handler_t h, commands_t commands, size_type& num_of_commands)
+void receive(handler_t h, commands_t commands, size_type num_of_commands)
 {
-//    auto process = [&commands, &context](std::string&& read)
-//    {
-//        context.process_cmd(std::move(read));
-//        read.clear();
-//        if(context.input_block_finished())
-//        {
-//            for(const auto& cmd:commands.get_cmd())
-//                commands.push_back(cmd);
-//            commands.clear_commands();
-//        }
-//    };
+    if(!h)
+        return;
+    if(h == std::numeric_limits<decltype(h)>::max())
+        return;
+    if(!num_of_commands)
+        return;
+    auto el{handlers.m_streams.find(h)};
+    if(el == std::end(handlers.m_streams))
+        return;
 
-//    read_input<decltype(process), CmdCollector::ParseErr>(std::cin, std::cerr, process);
-//    context.finish_block();
-//    if(context.input_block_finished())
-//    {
-//        for(const auto& cmd:commands.get_cmd())
-//            commands.push_back(cmd);
-//        commands.clear_commands();
-//    }
+    std::stringstream cmd_stream;
+    for(size_type cntr{0}; cntr < num_of_commands; ++cntr)
+        cmd_stream << commands[cntr] << '\n';
 
-    num_of_commands = handlers.size();
-    commands_t cmds = new char*[num_of_commands];
-    size_type index{0};
-    for(const auto& cmd:handlers.get(h).get_cmd())
+    auto& cmd_collector{el->second};
+    auto print = [h, &cmd_collector]()
     {
-        cmds[index] = new char[cmd.size() + 1];
-        strcopy(cmds[index], cmd.get(h).c_str());
-        ++index;
-    }
+        std::stringstream fname;
+        fname << "bulk" << cmd_collector.block_start_time(0) << '-' << h << ".log";
+        std::fstream file{fname.str(), std::fstream::out | std::fstream::app};
+        file << "bulk: ";
+        std::cout << "bulk: ";
+
+        std::size_t cntr = 0;
+        for(const auto& cmd:cmd_collector.get_cmd())
+        {
+            file << cmd;
+            std::cout << cmd;
+            if(++cntr < cmd_collector.block_size())
+            {
+                file << ", ";
+                std::cout << ", ";
+            }
+
+        }
+        std::cout << '\n';
+        file << '\n';
+        cmd_collector.clear_commands();
+    };
+
+    auto process = [&cmd_collector, &print](std::string&& read)
+    {
+        cmd_collector.process_cmd(std::move(read));
+        read.clear();
+        if(cmd_collector.input_block_finished())
+            print();
+    };
+
+    read_input<decltype(process), CmdCollector::ParseErr>(cmd_stream, std::cerr, process);
+    cmd_collector.finish_block();
+    if(cmd_collector.input_block_finished())
+        print();
 }
 
 }

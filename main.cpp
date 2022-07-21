@@ -4,48 +4,28 @@
 #include <sstream>
 #include <fstream>
 
-#include "CmdCollector.hpp"
-#include "read_input.hpp"
+#include "async.hpp"
 
 int main()
 {
-    CmdCollector commands{read_input_size(std::cin, std::cerr)};
+    constexpr size_type bulk_size{3};
+    const auto h1{connect(bulk_size)};
+    const auto h2{connect(bulk_size)};
 
-    auto print = [&commands]()
-    {
-        std::stringstream fname;
-        fname << "bulk" << commands.block_start_time(0) << ".log";
-        std::fstream file{fname.str(), std::fstream::out | std::fstream::app};
-        file << "bulk: ";
-        std::cout << "bulk: ";
+    const char* commands1[] = {"cmd1", "cmd2", "cmd3", "cmd4", "cmd5"};
+    constexpr size_type num1 = sizeof(commands1) / sizeof(commands1[0]);
 
-        std::size_t cntr = 0;
-        for(const auto& cmd:commands.get_cmd())
-        {
-            file << cmd;
-            std::cout << cmd;
-            if(++cntr < commands.block_size())
-            {
-                file << ", ";
-                std::cout << ", ";
-            }
+    const char* commands2[] = {"cmd1", "cmd2",
+                               "{", "cmd3", "cmd4", "}",
+                               "{", "cmd5", "cmd6", "{", "cmd7", "cmd8", "}", "cmd9", "}",
+                               "{", "cmd10", "cmd11"
+                              };
+    constexpr size_type num2 = sizeof(commands2) / sizeof(commands2[0]);
 
-        }
-        std::cout << '\n';
-        commands.clear_commands();
-    };
+    receive(h2, commands2, num2);
+    disconnect(h2);
 
-    auto process = [&commands, &print](std::string&& read)
-    {
-        commands.process_cmd(std::move(read));
-        read.clear();
-        if(commands.input_block_finished())
-            print();
-    };
-
-    read_input<decltype(process), CmdCollector::ParseErr>(std::cin, std::cerr, process);
-    commands.finish_block();
-    if(commands.input_block_finished())
-        print();
+    receive(h1, commands1, num1);
+    disconnect(h1);
     return 0;
 }
