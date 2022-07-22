@@ -164,15 +164,15 @@ void receive(handler_t h, commands_t commands, size_type num_of_commands)
     //std::thread t1{process_cmd_queue};
     //std::thread t2{process_cmd_queue};
     auto& q{cmd_collector.m_queue};
-    const auto& block{q.back()};
-    if(!block.m_block_finished)
-        q.pop();
+    //const auto& block{q.back()};
+    //if(!block.m_block_finished)
+    //    q.pop();
 
     while(!q.empty())
     {
         const auto& block{q.front()};
         const auto& cmds{block.m_block};
-        if(!cmds.empty())// && (block.m_block_finished || block.m_type == block_t::InputType::STATIC))
+        if(!cmds.empty() && (block.m_block_finished || block.m_type == block_t::InputType::STATIC))
         {
             std::stringstream fname;
             fname << h << "-bulk" << block.m_block_time << '-' << block.m_block_id << ".log";
