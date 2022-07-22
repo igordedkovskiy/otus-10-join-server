@@ -22,6 +22,7 @@ struct block_t
 {
     enum class InputType { STATIC, DYNAMIC };
     InputType m_type{InputType::STATIC};
+    bool m_block_finished{false};
     std::time_t m_block_time;
     size_type m_block_id{0};
     std::vector<std::string> m_block;
@@ -29,16 +30,22 @@ struct block_t
 
 struct commands_queue_t
 {
-    void process_cmd(std::string &&cmd)
+    commands_queue_t(size_type bulk_size): m_block_size{bulk_size} { m_queue.push(block_t{}); }
+
+    void process_cmd(std::string&& cmd)
     {
         if(cmd == "{")
         {
-            m_queue.back().m_type = block_t::InputType::DYNAMIC;
             if(++m_braces == 1)
             {
-                if(m_cmds.size() > 0)
-                    m_block_finished = true;
+                if(m_queue.back().m_block.size() > 0)
+                {
+                    m_queue.back().m_block_finished = true;
+                    m_queue.push(block_t{});
+                }
             }
+            if(m_braces > 0)
+                m_queue.back().m_type = block_t::InputType::DYNAMIC;
         }
         else if(cmd == "}")
         {
@@ -46,28 +53,37 @@ struct commands_queue_t
                 throw ParseErr::incorrect_format;
             if(--m_braces == 0)
             {
+                m_queue.back().m_block_finished = true;
+                m_queue.push(block_t{});
                 m_queue.back().m_type = block_t::InputType::STATIC;
-                m_block_finished = true;
             }
         }
         else
         {
-            m_cmds.emplace_back(std::move(cmd));
-            if(m_cmds.size() == 1)
+            auto& q = m_queue.back();
+            q.m_block.emplace_back(std::move(cmd));
+            if(q.m_block.size() == 1)
             {
-                m_queue.back().m_block_time = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
-                ++m_queue.back().m_block_id;
+                q.m_block_time = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+                q.m_block_id = m_prev_block_id + 1;
+                ++m_prev_block_id;
             }
+
             if(m_braces == 0)
             {
-                if(m_cmds.size() == m_capacity)
-                    m_block_finished = true;
+                if(q.m_block.size() == m_block_size)
+                {
+                    q.m_block_finished = true;
+                    m_queue.push(block_t{});
+                }
             }
         }
     }
 
     enum class ParseErr: std::uint8_t { incorrect_format };
-    std::size_t m_braces{0};
+    size_type m_block_size{0};
+    size_type m_braces{0};
+    size_type m_prev_block_id{0};
     std::queue<block_t> m_queue;
 };
 
@@ -107,7 +123,7 @@ extern "C"
 
 handler_t connect(size_type bulk_size)
 {
-    return handlers.create(CmdCollector{bulk_size});
+    return handlers.create(commands_queue_t{bulk_size});
 }
 
 int disconnect(handler_t h)
@@ -136,28 +152,51 @@ void receive(handler_t h, commands_t commands, size_type num_of_commands)
     auto process = [&cmd_collector](std::string&& read)
     {
         cmd_collector.process_cmd(std::move(read));
-        read.clear();
     };
 
     read_input<decltype(process), CmdCollector::ParseErr>(cmd_stream, std::cerr, process);
 
-    auto process_cmd_queue = [](commands_queue_t& q)
-    {
-        ;
-    };
-
-    std::thread t1{process_cmd_queue};
-    std::thread t2{process_cmd_queue};
-    //for(auto& q:cmd_collector.get_cmd())
+    //auto process_cmd_queue = [](commands_queue_t& q)
     //{
-    //    for(auto& cmd:q)
-    //    {
-    //        // print
-    //        // write to file
-    //    }
-    //}
-    t1.detach();
-    t2.detach();
+    //    ;
+    //};
+
+    //std::thread t1{process_cmd_queue};
+    //std::thread t2{process_cmd_queue};
+    auto& q{cmd_collector.m_queue};
+    const auto& block{q.back()};
+    if(!block.m_block_finished)
+        q.pop();
+
+    while(!q.empty())
+    {
+        const auto& block{q.front()};
+        const auto& cmds{block.m_block};
+        if(!cmds.empty())// && (block.m_block_finished || block.m_type == block_t::InputType::STATIC))
+        {
+            std::stringstream fname;
+            fname << h << "-bulk" << block.m_block_time << '-' << block.m_block_id << ".log";
+            std::fstream file{fname.str(), std::fstream::out | std::fstream::app};
+            file << "bulk: ";
+            std::cout << "bulk: ";
+            std::size_t cntr = 0;
+            for(const auto& cmd:cmds)
+            {
+                file << cmd;
+                std::cout << cmd;
+                if(++cntr < cmds.size())
+                {
+                    file << ", ";
+                    std::cout << ", ";
+                }
+            }
+            std::cout << '\n';
+            file << '\n';
+        }
+        q.pop();
+    }
+    //t1.detach();
+    //t2.detach();
 }
 
 }
