@@ -20,7 +20,7 @@ add_library(async_lib
 #    "CmdCollector.cpp"
     "read_input.hpp"
     "read_input.cpp"
-    "generator.hpp"
+#    "generator.hpp"
 )
 
 set_target_properties(${PROJECT_NAME} PROPERTIES
