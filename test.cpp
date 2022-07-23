@@ -3,6 +3,8 @@
 #include <sstream>
 #include <regex>
 #include <filesystem>
+#include <chrono>
+#include <thread>
 #include "gtest/gtest.h"
 
 //#include "CmdCollector.hpp"
@@ -104,10 +106,13 @@ TEST(TEST_ASYNC, test_lib)
     constexpr size_type num2 = sizeof(commands2) / sizeof(commands2[0]);
 
     receive(h2, commands2, num2);
-    disconnect(h2);
-
     receive(h1, commands1, num1);
+
+    //using namespace std::chrono_literals;
+    //std::this_thread::sleep_for(1000ms);
+
     disconnect(h1);
+    disconnect(h2);
 
     auto find_file = [](std::string masks)
     {

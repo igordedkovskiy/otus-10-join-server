@@ -115,6 +115,7 @@ struct Handlers
 };
 
 Handlers handlers;
+std::mutex handlers_mutex;
 
 }
 
@@ -149,32 +150,44 @@ void receive(handler_t h, commands_t commands, size_type num_of_commands)
         cmd_stream << commands[cntr] << '\n';
 
     auto& cmd_collector{el->second};
-    auto process = [&cmd_collector](std::string&& read)
+    auto process_input = [&cmd_collector](std::string&& read)
     {
         cmd_collector.process_cmd(std::move(read));
     };
 
-    read_input<decltype(process), ParseErr>(cmd_stream, std::cerr, process);
-
-    //auto process_cmd_queue = [](commands_queue_t& q)
-    //{
-    //    ;
-    //};
-
-    //std::thread t1{process_cmd_queue};
-    //std::thread t2{process_cmd_queue};
+    read_input<decltype(process_input), ParseErr>(cmd_stream, std::cerr, process_input);
 
     auto& q{cmd_collector.m_queue};
-    const auto& block{q.back()};
-    if(!block.is_finished())
-        q.pop_back();
-
-    while(!q.empty())
     {
-        const auto& block{q.front()};
-        const auto& cmds{block.m_block};
-//        if(block.is_finished())
+        const auto& block{q.back()};
+        if(!block.is_finished())
+            q.pop_back();
+    }
+
+    auto process_commands_queue = [h, &q]()
+    {
+        auto get_block = [&q]()
         {
+            std::lock_guard<std::mutex> guard{handlers_mutex};
+            if(q.empty())
+                return std::make_pair(false, block_t{});
+            auto block{std::move(q.front())};
+//            const auto cmds{std::move(block.m_block)};
+            q.pop_front();
+            return std::make_pair(true, std::move(block));
+        };
+
+        while(true)
+        {
+//            handlers_mutex.lock();
+//            const auto& block{q.front()};
+//            const auto cmds{std::move(block.m_block)};
+//            q.pop_front();
+//            handlers_mutex.unlock();
+            auto [res, block] = get_block();
+            if(!res)
+                break;
+            const auto& cmds{block.m_block};
             std::stringstream fname;
             fname << h << "-bulk" << block.m_block_time << '-' << block.m_block_id << ".log";
             std::fstream file{fname.str(), std::fstream::out | std::fstream::app};
@@ -194,10 +207,12 @@ void receive(handler_t h, commands_t commands, size_type num_of_commands)
             std::cout << '\n';
             file << '\n';
         }
-        q.pop_front();
-    }
-    //t1.detach();
-    //t2.detach();
+    };
+
+    std::thread t1{process_commands_queue};//, std::ref(q)};
+    std::thread t2{process_commands_queue};//, std::ref(q)};
+    t1.join();
+    t2.join();
 }
 
 }
