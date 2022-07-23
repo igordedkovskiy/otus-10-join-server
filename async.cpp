@@ -1,11 +1,10 @@
-// homework #6: command processing (bulk).
+// homework #8: async commands processing (bulk).
 
 #include <iostream>
 #include <sstream>
 #include <fstream>
 #include <vector>
-#include <list>
-#include <queue>
+//#include <queue>
 #include <deque>
 #include <unordered_map>
 #include <thread>
@@ -13,11 +12,15 @@
 #include <chrono>
 
 #include "async.hpp"
-#include "CmdCollector.hpp"
 #include "read_input.hpp"
 
 namespace
 {
+
+enum class ParseErr: std::uint8_t
+{
+    incorrect_format
+};
 
 struct block_t
 {
@@ -151,7 +154,7 @@ void receive(handler_t h, commands_t commands, size_type num_of_commands)
         cmd_collector.process_cmd(std::move(read));
     };
 
-    read_input<decltype(process), CmdCollector::ParseErr>(cmd_stream, std::cerr, process);
+    read_input<decltype(process), ParseErr>(cmd_stream, std::cerr, process);
 
     //auto process_cmd_queue = [](commands_queue_t& q)
     //{
