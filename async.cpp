@@ -124,11 +124,13 @@ extern "C"
 
 handler_t connect(size_type bulk_size)
 {
+    std::lock_guard<std::mutex> guard{handlers_mutex};
     return handlers.create(commands_queue_t{bulk_size});
 }
 
 int disconnect(handler_t h)
 {
+    std::lock_guard<std::mutex> guard{handlers_mutex};
     handlers.destroy(h);
     return 1;
 }
@@ -172,27 +174,27 @@ void receive(handler_t h, commands_t commands, size_type num_of_commands)
             if(q.empty())
                 return std::make_pair(false, block_t{});
             auto block{std::move(q.front())};
-//            const auto cmds{std::move(block.m_block)};
             q.pop_front();
             return std::make_pair(true, std::move(block));
         };
 
+        const auto th_id{std::this_thread::get_id()};
         while(true)
         {
-//            handlers_mutex.lock();
-//            const auto& block{q.front()};
-//            const auto cmds{std::move(block.m_block)};
-//            q.pop_front();
-//            handlers_mutex.unlock();
             auto [res, block] = get_block();
             if(!res)
                 break;
             const auto& cmds{block.m_block};
             std::stringstream fname;
-            fname << h << "-bulk" << block.m_block_time << '-' << block.m_block_id << ".log";
+            //fname << h << "-bulk" << block.m_block_time << '-' << block.m_block_id << ".log";
+            fname << "bulk-" << h << '-' << th_id << '-'
+                  << block.m_block_time << '-' << block.m_block_id << ".log";
             std::fstream file{fname.str(), std::fstream::out | std::fstream::app};
             file << "bulk: ";
+
+//            std::cout << "thread id: " << std::this_thread::get_id() << ". ";
             std::cout << "bulk: ";
+
             std::size_t cntr = 0;
             for(const auto& cmd:cmds)
             {
@@ -209,8 +211,8 @@ void receive(handler_t h, commands_t commands, size_type num_of_commands)
         }
     };
 
-    std::thread t1{process_commands_queue};//, std::ref(q)};
-    std::thread t2{process_commands_queue};//, std::ref(q)};
+    std::thread t1{process_commands_queue};
+    std::thread t2{process_commands_queue};
     t1.join();
     t2.join();
 }
