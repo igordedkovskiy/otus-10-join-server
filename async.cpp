@@ -4,7 +4,6 @@
 #include <sstream>
 #include <fstream>
 #include <vector>
-//#include <queue>
 #include <deque>
 #include <unordered_map>
 #include <thread>
@@ -26,11 +25,11 @@ struct block_t
 {
     bool is_finished() const noexcept
     {
-        return m_block_finished || m_type == InputType::STATIC;
+        return m_block_finished || m_type == BlockType::STATIC;
     }
 
-    enum class InputType { STATIC, DYNAMIC };
-    InputType m_type{InputType::STATIC};
+    enum class BlockType { STATIC, DYNAMIC };
+    BlockType m_type{BlockType::STATIC};
     bool m_block_finished{false};
     std::time_t m_block_time;
     size_type m_block_id{0};
@@ -55,13 +54,18 @@ struct commands_queue_t
             if(--m_braces == 0)
                 m_queue.back().m_block_finished = true;
         }
+        //else if(cmd == std::string{0x05})
+        //{
+        //    if(m_queue.back().m_type == block_t::BlockType::STATIC)
+        //        m_queue.back().m_block_finished = true;
+        //}
         else
         {
             if(m_queue.back().m_block_finished)
             {
                 m_queue.push_back(block_t{});
                 if(m_braces > 0)
-                    m_queue.back().m_type = block_t::InputType::DYNAMIC;
+                    m_queue.back().m_type = block_t::BlockType::DYNAMIC;
             }
             auto& q = m_queue.back();
             q.m_block.emplace_back(std::move(cmd));
@@ -160,18 +164,14 @@ void receive(handler_t h, commands_t commands, size_type num_of_commands)
     read_input<decltype(process_input), ParseErr>(cmd_stream, std::cerr, process_input);
 
     auto& q{cmd_collector.m_queue};
-    {
-        const auto& block{q.back()};
-        if(!block.is_finished())
-            q.pop_back();
-    }
-
     auto process_commands_queue = [h, &q]()
     {
         auto get_block = [&q]()
         {
             std::lock_guard<std::mutex> guard{handlers_mutex};
             if(q.empty())
+                return std::make_pair(false, block_t{});
+            if(!q.front().is_finished())
                 return std::make_pair(false, block_t{});
             auto block{std::move(q.front())};
             q.pop_front();
@@ -186,13 +186,10 @@ void receive(handler_t h, commands_t commands, size_type num_of_commands)
                 break;
             const auto& cmds{block.m_block};
             std::stringstream fname;
-            //fname << h << "-bulk" << block.m_block_time << '-' << block.m_block_id << ".log";
             fname << "bulk-" << h << '-' << th_id << '-'
                   << block.m_block_time << '-' << block.m_block_id << ".log";
             std::fstream file{fname.str(), std::fstream::out | std::fstream::app};
             file << "bulk: ";
-
-//            std::cout << "thread id: " << std::this_thread::get_id() << ". ";
             std::cout << "bulk: ";
 
             std::size_t cntr = 0;

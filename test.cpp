@@ -59,6 +59,18 @@ bool check(std::stringstream ref, std::string masks)
     return true;
 }
 
+void check_all()
+{
+    // context 1
+    ASSERT_TRUE(check(std::stringstream{"bulk: cmd1, cmd2, cmd3\n"}, std::string{"(bulk-1-.*-1.log)"}));
+    ASSERT_TRUE(check(std::stringstream{"bulk: cmd4, cmd5\n"}, std::string{"(bulk-1-.*-2.log)"}));
+
+    // context 2
+    ASSERT_TRUE(check(std::stringstream{"bulk: cmd1, cmd2\n"}, std::string{"(bulk-2-.*-1.log)"}));
+    ASSERT_TRUE(check(std::stringstream{"bulk: cmd3, cmd4\n"}, std::string{"(bulk-2-.*-2.log)"}));
+    ASSERT_TRUE(check(std::stringstream{"bulk: cmd5, cmd6, cmd7, cmd8, cmd9\n"}, std::string{"(bulk-2-.*-3.log)"}));
+}
+
 }
 
 TEST(TEST_ASYNC, async_sinlge_thread)
@@ -69,20 +81,10 @@ TEST(TEST_ASYNC, async_sinlge_thread)
     receive(h2, commands2, num2);
     receive(h1, commands1, num1);
 
-    //using namespace std::chrono_literals;
-    //std::this_thread::sleep_for(1000ms);
-
     disconnect(h1);
     disconnect(h2);
 
-    // context 1
-    ASSERT_TRUE(check(std::stringstream{"bulk: cmd1, cmd2, cmd3\n"}, std::string{"(bulk-1-.*-1.log)"}));
-    ASSERT_TRUE(check(std::stringstream{"bulk: cmd4, cmd5\n"}, std::string{"(bulk-1-.*-2.log)"}));
-
-    // context 2
-    ASSERT_TRUE(check(std::stringstream{"bulk: cmd1, cmd2\n"}, std::string{"(bulk-2-.*-1.log)"}));
-    ASSERT_TRUE(check(std::stringstream{"bulk: cmd3, cmd4\n"}, std::string{"(bulk-2-.*-2.log)"}));
-    ASSERT_TRUE(check(std::stringstream{"bulk: cmd5, cmd6, cmd7, cmd8, cmd9\n"}, std::string{"(bulk-2-.*-3.log)"}));
+    check_all();
 }
 
 TEST(TEST_ASYNC, async_multiple_threads)
@@ -95,20 +97,27 @@ TEST(TEST_ASYNC, async_multiple_threads)
     t1.join();
     t2.join();
 
-    //using namespace std::chrono_literals;
-    //std::this_thread::sleep_for(1000ms);
+    disconnect(h1);
+    disconnect(h2);
+
+    check_all();
+}
+
+TEST(TEST_ASYNC, async_sinlge_thread_gradually)
+{
+    const auto h1{connect(bulk_size)};
+    const auto h2{connect(bulk_size)};
+
+    receive(h2, commands2, 2);
+    receive(h1, commands1, 3);
+
+    receive(h2, &commands2[0] + 2, 16);
+    receive(h1, &commands1[0] + 3, 2);
 
     disconnect(h1);
     disconnect(h2);
 
-    // context 1
-    ASSERT_TRUE(check(std::stringstream{"bulk: cmd1, cmd2, cmd3\n"}, std::string{"(bulk-1-.*-1.log)"}));
-    ASSERT_TRUE(check(std::stringstream{"bulk: cmd4, cmd5\n"}, std::string{"(bulk-1-.*-2.log)"}));
-
-    // context 2
-    ASSERT_TRUE(check(std::stringstream{"bulk: cmd1, cmd2\n"}, std::string{"(bulk-2-.*-1.log)"}));
-    ASSERT_TRUE(check(std::stringstream{"bulk: cmd3, cmd4\n"}, std::string{"(bulk-2-.*-2.log)"}));
-    ASSERT_TRUE(check(std::stringstream{"bulk: cmd5, cmd6, cmd7, cmd8, cmd9\n"}, std::string{"(bulk-2-.*-3.log)"}));
+    check_all();
 }
 
 int main(int argc, char** argv)
