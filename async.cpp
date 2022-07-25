@@ -205,6 +205,8 @@ void receive(handler_t h, commands_t commands, size_type num_of_commands)
             }
             std::cout << '\n';
             file << '\n';
+            std::cout.flush();
+            file.flush();
         }
     };
 
