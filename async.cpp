@@ -5,8 +5,10 @@
 #include <fstream>
 #include <vector>
 #include <deque>
+#include <queue>
 #include <unordered_map>
 #include <thread>
+#include <chrono>
 #include <cstdint>
 #include <chrono>
 
@@ -121,6 +123,8 @@ struct Handlers
 Handlers handlers;
 std::mutex handlers_mutex;
 
+std::queue<std::vector<std::string>> logq;
+
 }
 
 extern "C"
@@ -163,8 +167,22 @@ void receive(handler_t h, commands_t commands, size_type num_of_commands)
 
     read_input<decltype(process_input), ParseErr>(cmd_stream, std::cerr, process_input);
 
+    auto print = [](auto& stream, auto& cmds)
+    {
+        stream << "bulk: ";
+        std::size_t cntr = 0;
+        for(const auto& cmd:cmds)
+        {
+            stream << cmd;
+            if(++cntr < cmds.size())
+                stream << ", ";
+        }
+        stream << '\n';
+        stream.flush();
+    };
+
     auto& q{cmd_collector.m_queue};
-    auto process_commands_queue = [h, &q]()
+    auto process_commands_queue = [h, &q, &print]()
     {
         auto get_block = [&q]()
         {
@@ -175,6 +193,7 @@ void receive(handler_t h, commands_t commands, size_type num_of_commands)
                 return std::make_pair(false, block_t{});
             auto block{std::move(q.front())};
             q.pop_front();
+            logq.push(block.m_block);
             return std::make_pair(true, std::move(block));
         };
 
@@ -189,31 +208,33 @@ void receive(handler_t h, commands_t commands, size_type num_of_commands)
             fname << "bulk-" << h << '-' << th_id << '-'
                   << block.m_block_time << '-' << block.m_block_id << ".log";
             std::fstream file{fname.str(), std::fstream::out | std::fstream::app};
-            file << "bulk: ";
-            std::cout << "bulk: ";
-
-            std::size_t cntr = 0;
-            for(const auto& cmd:cmds)
-            {
-                file << cmd;
-                std::cout << cmd;
-                if(++cntr < cmds.size())
-                {
-                    file << ", ";
-                    std::cout << ", ";
-                }
-            }
-            std::cout << '\n';
-            file << '\n';
-            std::cout.flush();
-            file.flush();
+            print(file, cmds);
         }
     };
 
+    auto process_log = [&print, &q]()
+    {
+        while(!q.empty())
+        {
+            auto& logqr = logq;
+            while(!logqr.empty())
+            {
+                const auto cmds{std::move(logq.front())};
+                logq.pop();
+                print(std::cout, cmds);
+            }
+            using namespace std::chrono;
+            std::this_thread::sleep_for(2ms);
+        }
+    };
+
+
     std::thread t1{process_commands_queue};
     std::thread t2{process_commands_queue};
+    std::thread log{process_log};
     t1.join();
     t2.join();
+    log.join();
 }
 
 }
