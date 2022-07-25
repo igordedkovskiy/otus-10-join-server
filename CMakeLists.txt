@@ -10,6 +10,9 @@ option(GIT_SUBMODULE "Check submodules during build" ON)
 
 configure_file(version.h.in version.h)
 
+find_package(Threads)
+list(APPEND EXTRA_LINKS ${CMAKE_THREAD_LIBS_INIT})
+
 add_executable(${PROJECT_NAME}
     "main.cpp"
 )
@@ -39,6 +42,7 @@ target_include_directories(async_lib
 
 target_link_libraries(${PROJECT_NAME} PRIVATE
     async_lib
+    ${EXTRA_LINKS}
 )
 
 if(WITH_GTEST)
@@ -110,6 +114,7 @@ if(WITH_GTEST)
         gtest
         gtest_main
         async_lib
+        ${EXTRA_LINKS}
     )
 endif()
 
