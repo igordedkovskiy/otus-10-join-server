@@ -7,7 +7,6 @@ extern "C"
 
 using size_type = std::size_t;
 using handler_t = size_type;
-using commands_t = const char**;
 
 /// \brief   Create a new context
 /// \arg \a  bulk_size is a size of a bulk (block of commands)
@@ -17,6 +16,11 @@ handler_t connect(size_type bulk_size);
 int disconnect(handler_t h);
 
 /// \brief Transfer commands to a context
-void receive(handler_t h, commands_t commands, size_type num_of_commands);
+void receive(handler_t h, const char* data, size_type data_size);
+
+
+handler_t connect_ths(size_type bulk_size);
+int disconnect_ths(handler_t h);
+void receive_ths(handler_t h, const char* data, size_type data_size);
 
 }
