@@ -104,51 +104,34 @@ SyncContext f1, f2, log;
 std::fstream file1, file2;
 std::size_t fcntr{0};
 
-}
-
-extern "C"
+struct Process
 {
+    Process(CmdCollector& c): commands{c} {}
 
-handler_t connect(size_type bulk_size)
-{
-    return Handlers::get().create(CmdCollector{bulk_size});
-}
-
-int disconnect(handler_t h)
-{
-    if(!h)
-        return 0;
-    if(h == std::numeric_limits<decltype(h)>::max())
-        return 0;
-    auto el{Handlers::get().find(h)};
-    if(el == Handlers::get().end())
-        return 0;
-
-    auto print = [](std::ostream& stream, CmdCollector::cmds_t cmds,
-            std::mutex& m, std::condition_variable& cv, std::atomic<bool>& done)
+    void operator()(std::string&& read)
     {
+        auto print = [](std::ostream& stream, CmdCollector::cmds_t cmds,
+                std::mutex& m, std::condition_variable& cv, std::atomic<bool>& done)
         {
-            std::unique_lock lk{m};
-            //std::cout << '\n';
-            //std::cout << __PRETTY_FUNCTION__ << '\n';
-            //std::cout << std::this_thread::get_id() << std::endl;
-            stream << "bulk: ";
-            std::size_t cntr = 0;
-            for(const auto& cmd:cmds)
             {
-                stream << cmd;
-                if(++cntr < cmds.size())
-                    stream << ", ";
+                std::unique_lock lk{m};
+                //std::cout << '\n';
+                //std::cout << __PRETTY_FUNCTION__ << '\n';
+                //std::cout << std::this_thread::get_id() << std::endl;
+                stream << "bulk: ";
+                std::size_t cntr = 0;
+                for(const auto& cmd:cmds)
+                {
+                    stream << cmd;
+                    if(++cntr < cmds.size())
+                        stream << ", ";
+                }
+                stream << '\n';
+                done = true;
             }
-            stream << '\n';
-            done = true;
-        }
-        cv.notify_all();
-    };
+            cv.notify_all();
+        };
 
-    auto& commands{el->second};
-    auto process = [&commands, &print](std::string&& read)
-    {
         commands.process_cmd(std::move(read));
         read.clear();
         if(commands.input_block_finished())
@@ -180,8 +163,90 @@ int disconnect(handler_t h)
 
             commands.clear_commands();
         }
-    };
+    }
+
+    CmdCollector& commands;
+};
+
+}
+
+extern "C"
+{
+
+handler_t connect(size_type bulk_size)
+{
+    return Handlers::get().create(CmdCollector{bulk_size});
+}
+
+int disconnect(handler_t h)
+{
+    if(!h)
+        return 0;
+    if(h == std::numeric_limits<decltype(h)>::max())
+        return 0;
+    auto el{Handlers::get().find(h)};
+    if(el == Handlers::get().end())
+        return 0;
+
+//    auto print = [](std::ostream& stream, CmdCollector::cmds_t cmds,
+//            std::mutex& m, std::condition_variable& cv, std::atomic<bool>& done)
+//    {
+//        {
+//            std::unique_lock lk{m};
+//            //std::cout << '\n';
+//            //std::cout << __PRETTY_FUNCTION__ << '\n';
+//            //std::cout << std::this_thread::get_id() << std::endl;
+//            stream << "bulk: ";
+//            std::size_t cntr = 0;
+//            for(const auto& cmd:cmds)
+//            {
+//                stream << cmd;
+//                if(++cntr < cmds.size())
+//                    stream << ", ";
+//            }
+//            stream << '\n';
+//            done = true;
+//        }
+//        cv.notify_all();
+//    };
+
+    auto& commands{el->second};
+//    auto process = [&commands, &print](std::string&& read)
+//    {
+//        commands.process_cmd(std::move(read));
+//        read.clear();
+//        if(commands.input_block_finished())
+//        {
+//            const auto cmds{std::move(commands.get_cmds())};
+
+//            log.wait();
+//            log.run(print, std::cout, cmds);
+
+//            std::stringstream fname;
+//            fname << "bulk-" << commands.block_start_time(0) << '-' << ++fcntr << ".log";
+
+//            if(f1.ready())
+//            {
+//                file1 = std::fstream{fname.str(), std::fstream::out | std::fstream::app};
+//                f1.run(print, file1, std::move(cmds));
+//            }
+//            else if(f2.ready())
+//            {
+//                file2 = std::fstream{fname.str(), std::fstream::out | std::fstream::app};
+//                f2.run(print, file2, std::move(cmds));
+//            }
+//            else
+//            {
+//                f1.wait();
+//                file1 = std::fstream{fname.str(), std::fstream::out | std::fstream::app};
+//                f1.run(print, file1, std::move(cmds));
+//            }
+
+//            commands.clear_commands();
+//        }
+//    };
     commands.finish_block();
+    Process process{commands};
     process("{");
 
     f1.wait();
@@ -208,64 +273,65 @@ void receive(handler_t h, const char* data, size_type data_size)
     for(size_type cntr{0}; cntr < data_size; ++cntr)
         cmd_stream << data[cntr];
 
-    auto print = [](std::ostream& stream, CmdCollector::cmds_t cmds,
-            std::mutex& m, std::condition_variable& cv, std::atomic<bool>& done)
-    {
-        {
-            std::unique_lock lk{m};
-            //std::cout << '\n';
-            //std::cout << __PRETTY_FUNCTION__ << '\n';
-            //std::cout << std::this_thread::get_id() << std::endl;
-            stream << "bulk: ";
-            std::size_t cntr = 0;
-            for(const auto& cmd:cmds)
-            {
-                stream << cmd;
-                if(++cntr < cmds.size())
-                    stream << ", ";
-            }
-            stream << '\n';
-            done = true;
-        }
-        cv.notify_all();
-    };
+//    auto print = [](std::ostream& stream, CmdCollector::cmds_t cmds,
+//            std::mutex& m, std::condition_variable& cv, std::atomic<bool>& done)
+//    {
+//        {
+//            std::unique_lock lk{m};
+//            //std::cout << '\n';
+//            //std::cout << __PRETTY_FUNCTION__ << '\n';
+//            //std::cout << std::this_thread::get_id() << std::endl;
+//            stream << "bulk: ";
+//            std::size_t cntr = 0;
+//            for(const auto& cmd:cmds)
+//            {
+//                stream << cmd;
+//                if(++cntr < cmds.size())
+//                    stream << ", ";
+//            }
+//            stream << '\n';
+//            done = true;
+//        }
+//        cv.notify_all();
+//    };
 
     auto& commands{el->second};
-    auto process = [&commands, &print](std::string&& read)
-    {
-        commands.process_cmd(std::move(read));
-        read.clear();
-        if(commands.input_block_finished())
-        {
-            const auto cmds{std::move(commands.get_cmds())};
+//    auto process = [&commands, &print](std::string&& read)
+//    {
+//        commands.process_cmd(std::move(read));
+//        read.clear();
+//        if(commands.input_block_finished())
+//        {
+//            const auto cmds{std::move(commands.get_cmds())};
 
-            log.wait();
-            log.run(print, std::cout, cmds);
+//            log.wait();
+//            log.run(print, std::cout, cmds);
 
-            std::stringstream fname;
-            fname << "bulk-" << commands.block_start_time(0) << '-' << ++fcntr << ".log";
+//            std::stringstream fname;
+//            fname << "bulk-" << commands.block_start_time(0) << '-' << ++fcntr << ".log";
 
-            if(f1.ready())
-            {
-                file1 = std::fstream{fname.str(), std::fstream::out | std::fstream::app};
-                f1.run(print, file1, std::move(cmds));
-            }
-            else if(f2.ready())
-            {
-                file2 = std::fstream{fname.str(), std::fstream::out | std::fstream::app};
-                f2.run(print, file2, std::move(cmds));
-            }
-            else
-            {
-                f1.wait();
-                file1 = std::fstream{fname.str(), std::fstream::out | std::fstream::app};
-                f1.run(print, file1, std::move(cmds));
-            }
+//            if(f1.ready())
+//            {
+//                file1 = std::fstream{fname.str(), std::fstream::out | std::fstream::app};
+//                f1.run(print, file1, std::move(cmds));
+//            }
+//            else if(f2.ready())
+//            {
+//                file2 = std::fstream{fname.str(), std::fstream::out | std::fstream::app};
+//                f2.run(print, file2, std::move(cmds));
+//            }
+//            else
+//            {
+//                f1.wait();
+//                file1 = std::fstream{fname.str(), std::fstream::out | std::fstream::app};
+//                f1.run(print, file1, std::move(cmds));
+//            }
 
-            commands.clear_commands();
-        }
-    };
+//            commands.clear_commands();
+//        }
+//    };
 
+    Process process{commands};
     read_input<decltype(process), CmdCollector::ParseErr>(cmd_stream, std::cerr, process);
 }
 
