@@ -18,9 +18,4 @@ int disconnect(handler_t h);
 /// \brief Transfer commands to a context
 void receive(handler_t h, const char* data, size_type data_size);
 
-
-handler_t connect_ths(size_type bulk_size);
-int disconnect_ths(handler_t h);
-void receive_ths(handler_t h, const char* data, size_type data_size);
-
 }

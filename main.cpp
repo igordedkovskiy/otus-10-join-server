@@ -31,7 +31,7 @@ void single_thread()
 
     using namespace std::chrono;
     const auto start1 = std::chrono::high_resolution_clock::now();
-    for(size_type cntr{0}; cntr < 10; ++cntr)
+//    for(size_type cntr{0}; cntr < 10; ++cntr)
     {
         {
             std::cout << "\n\n" << std::endl;
@@ -61,38 +61,38 @@ void single_thread()
     }
     const auto passed1 = duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - start1).count();
 
-    const auto start2 = std::chrono::high_resolution_clock::now();
-    for(size_type cntr{0}; cntr < 10; ++cntr)
-    {
-        {
-            std::cout << "\n\n" << std::endl;
-            const auto h1{connect_ths(bulk_size)};
-            const auto h2{connect_ths(bulk_size)};
-            receive_ths(h2, "cmd1\n", 5);
-            receive_ths(h1, "cmd1\ncmd2\n", 10);
-            receive_ths(h2, "cmd2\n{\ncmd3\ncmd4\n}\n", 19);
-            receive_ths(h2, "{\n", 2);
-            receive_ths(h2, "cmd5\ncmd6\n{\ncmd7\ncmd8\n}\ncmd9\n}\n", 31);
-            receive_ths(h1, "cmd3\ncmd4\n", 10);
-            receive_ths(h2, "{\ncmd10\ncmd11\n", 12);
-            receive_ths(h1, "cmd5\n", 5);
-            disconnect_ths(h2);
-            disconnect_ths(h1);
-        }
-        {
-            std::cout << "\n\n" << std::endl;
-            const auto h1{connect_ths(bulk_size)};
-            receive_ths(h1, "cmd1\n", 5);
-            receive_ths(h1, "cmd2\n", 5);
-            receive_ths(h1, "cmd3\n", 5);
-            receive_ths(h1, "cmd4\n", 5);
-            receive_ths(h1, "cmd5\n", 5);
-            disconnect_ths(h1);
-        }
-    }
-    const auto passed2 = duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - start2).count();
+//    const auto start2 = std::chrono::high_resolution_clock::now();
+//    for(size_type cntr{0}; cntr < 10; ++cntr)
+//    {
+//        {
+//            std::cout << "\n\n" << std::endl;
+//            const auto h1{connect_ths(bulk_size)};
+//            const auto h2{connect_ths(bulk_size)};
+//            receive_ths(h2, "cmd1\n", 5);
+//            receive_ths(h1, "cmd1\ncmd2\n", 10);
+//            receive_ths(h2, "cmd2\n{\ncmd3\ncmd4\n}\n", 19);
+//            receive_ths(h2, "{\n", 2);
+//            receive_ths(h2, "cmd5\ncmd6\n{\ncmd7\ncmd8\n}\ncmd9\n}\n", 31);
+//            receive_ths(h1, "cmd3\ncmd4\n", 10);
+//            receive_ths(h2, "{\ncmd10\ncmd11\n", 12);
+//            receive_ths(h1, "cmd5\n", 5);
+//            disconnect_ths(h2);
+//            disconnect_ths(h1);
+//        }
+//        {
+//            std::cout << "\n\n" << std::endl;
+//            const auto h1{connect_ths(bulk_size)};
+//            receive_ths(h1, "cmd1\n", 5);
+//            receive_ths(h1, "cmd2\n", 5);
+//            receive_ths(h1, "cmd3\n", 5);
+//            receive_ths(h1, "cmd4\n", 5);
+//            receive_ths(h1, "cmd5\n", 5);
+//            disconnect_ths(h1);
+//        }
+//    }
+//    const auto passed2 = duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - start2).count();
     std::cout << passed1 << std::endl;
-    std::cout << passed2 << std::endl;
+//    std::cout << passed2 << std::endl;
 }
 
 //void multiple_threads()
