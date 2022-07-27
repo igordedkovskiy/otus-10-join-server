@@ -32,7 +32,6 @@ public:
     void process_cmd(std::string&& cmd);
 
     time_t block_start_time([[maybe_unused]] std::size_t number) const noexcept;
-    std::size_t block_id() const noexcept;
 
     void set_block_max_size(std::size_t N);
 
@@ -42,16 +41,16 @@ public:
 
     generator<std::string> get_cmd() const;
 
+    using cmds_t = std::vector<std::string>;
+    cmds_t& get_cmds() noexcept;
+
 private:
-    enum class InputType { STATIC, DYNAMIC };
+    enum class BlockType { STATIC, DYNAMIC };
 
-    InputType m_type{InputType::STATIC};
+    BlockType m_type{BlockType::STATIC};
     bool m_block_finished{false};
-    std::size_t m_capacity{0};
+    std::size_t m_block_size{0};
     std::size_t m_braces{0};
-
-    std::time_t m_cur_block_time;
-    std::size_t m_cur_block_id{0};
-
-    std::vector<std::string> m_cmds;
+    std::time_t m_time;
+    cmds_t m_cmds;
 };

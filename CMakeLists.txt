@@ -19,11 +19,11 @@ add_executable(${PROJECT_NAME}
 add_library(async_lib
     "async.hpp"
     "async.cpp"
-#    "CmdCollector.hpp"
-#    "CmdCollector.cpp"
+    "CmdCollector.hpp"
+    "CmdCollector.cpp"
     "read_input.hpp"
     "read_input.cpp"
-#    "generator.hpp"
+    "generator.hpp"
 )
 
 set_target_properties(${PROJECT_NAME} PROPERTIES
