@@ -72,6 +72,11 @@ struct Process
     class MThreadingContext
     {
     public:
+        ~MThreadingContext()
+        {
+            wait();
+        }
+
         template<typename F, typename... Args> void run(F&& print, Args&&... args)
         {
             m_done = false;
