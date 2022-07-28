@@ -4,14 +4,11 @@
 #include <sstream>
 #include <fstream>
 #include <vector>
-#include <deque>
-#include <queue>
 #include <unordered_map>
-#include <unordered_set>
 #include <thread>
 #include <mutex>
 #include <condition_variable>
-#include <chrono>
+#include <memory>
 #include <cstdint>
 
 #include "CmdCollector.hpp"
@@ -24,8 +21,6 @@ namespace
 class Handlers
 {
 public:
-
-
     static Handlers& get()
     {
         static Handlers handlers;
@@ -42,11 +37,11 @@ public:
         return m_handlers.end();
     }
 
-    handler_t create(CmdCollector&& collector)
+    handler_t create(std::unique_ptr<CmdCollector> collector)
     {
-        m_last = !m_handlers.empty() ? m_last + 1 : 1;
-        m_handlers.insert(std::make_pair(m_last, collector));
-        return m_last;
+        const auto ptr{collector.get()};
+        m_handlers.insert(std::make_pair(ptr, std::move(collector)));
+        return ptr;
     }
 
     void destroy(handler_t h)
@@ -54,8 +49,6 @@ public:
         auto el{m_handlers.find(h)};
         if(el != std::end(m_handlers))
             m_handlers.erase(el);
-        if(h == m_last)
-            --m_last;
     }
 
     size_type size() const noexcept
@@ -66,9 +59,8 @@ public:
 private:
     Handlers() = default;
 
-    using handlers_t = std::unordered_map<handler_t, CmdCollector>;
+    using handlers_t = std::unordered_map<handler_t, std::unique_ptr<CmdCollector>>;
     handlers_t m_handlers;
-    handler_t m_last{std::numeric_limits<handler_t>::max()};
 };
 
 
@@ -153,7 +145,7 @@ struct Process
             m_log.run(print, std::cout, cmds);
 
             std::stringstream fname;
-            fname << "bulk-" << m_handler << '-' << m_commands.block_start_time(0) << '-' << ++m_fcntr << ".log";
+            fname << "bulk-" << (unsigned long long)m_handler << '-' << m_commands.block_start_time(0) << '-' << ++m_fcntr << ".log";
 
             if(m_f1.ready())
             {
@@ -198,7 +190,7 @@ extern "C"
 
 handler_t connect(size_type bulk_size)
 {
-    return Handlers::get().create(CmdCollector{bulk_size});
+    return Handlers::get().create(std::make_unique<CmdCollector>(CmdCollector{bulk_size}));
 }
 
 int disconnect(handler_t h)
@@ -212,8 +204,8 @@ int disconnect(handler_t h)
         return 0;
 
     auto& commands{el->second};
-    commands.finish_block();
-    Process process{h, commands};
+    commands->finish_block();
+    Process process{h, *commands.get()};
     process("{");
 
     Handlers::get().destroy(h);
@@ -236,7 +228,7 @@ void receive(handler_t h, const char* data, size_type data_size)
     for(size_type cntr{0}; cntr < data_size; ++cntr)
         cmd_stream << data[cntr];
 
-    Process process{h, el->second};
+    Process process{h, *(el->second.get())};
     read_input<decltype(process), CmdCollector::ParseErr>(cmd_stream, std::cerr, process);
 }
 

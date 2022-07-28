@@ -6,7 +6,7 @@ extern "C"
 {
 
 using size_type = std::size_t;
-using handler_t = size_type;
+using handler_t = void*;
 
 /// \brief   Create a new context
 /// \arg \a  bulk_size is a size of a bulk (block of commands)

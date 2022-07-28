@@ -77,13 +77,13 @@ TEST(TEST_ASYNC, async_sinlge_thread)
     wait();
 
     // context 1
-    ASSERT_TRUE(check(std::stringstream{"bulk: cmd1, cmd2, cmd3\n"}, "(bulk-" + std::to_string(h1) + "-.*.log)"));
-    ASSERT_TRUE(check(std::stringstream{"bulk: cmd4, cmd5\n"}, "(bulk-" + std::to_string(h1) + "-.*.log)"));
+    ASSERT_TRUE(check(std::stringstream{"bulk: cmd1, cmd2, cmd3\n"}, "(bulk-" + std::to_string((unsigned long long)h1) + "-.*.log)"));
+    ASSERT_TRUE(check(std::stringstream{"bulk: cmd4, cmd5\n"}, "(bulk-" + std::to_string((unsigned long long)h1) + "-.*.log)"));
 
     // context 2
-    ASSERT_TRUE(check(std::stringstream{"bulk: cmd1, cmd2\n"}, "(bulk-" + std::to_string(h2) + "-.*.log)"));
-    ASSERT_TRUE(check(std::stringstream{"bulk: cmd3, cmd4\n"}, "(bulk-" + std::to_string(h2) + "-.*.log)"));
-    ASSERT_TRUE(check(std::stringstream{"bulk: cmd5, cmd6, cmd7, cmd8, cmd9\n"}, "(bulk-" + std::to_string(h2) + "-.*.log)"));
+    ASSERT_TRUE(check(std::stringstream{"bulk: cmd1, cmd2\n"}, "(bulk-" + std::to_string((unsigned long long)h2) + "-.*.log)"));
+    ASSERT_TRUE(check(std::stringstream{"bulk: cmd3, cmd4\n"}, "(bulk-" + std::to_string((unsigned long long)h2) + "-.*.log)"));
+    ASSERT_TRUE(check(std::stringstream{"bulk: cmd5, cmd6, cmd7, cmd8, cmd9\n"}, "(bulk-" + std::to_string((unsigned long long)h2) + "-.*.log)"));
 }
 
 int main(int argc, char** argv)
