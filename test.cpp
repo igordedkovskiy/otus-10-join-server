@@ -75,6 +75,8 @@ TEST(TEST_ASYNC, async_sinlge_thread)
     async::disconnect(h2);
 
     async::wait();
+//    using namespace std::chrono;
+//    std::this_thread::sleep_for(10ms);
 
     // context 1
     ASSERT_TRUE(check(std::stringstream{"bulk: cmd1, cmd2, cmd3\n"},

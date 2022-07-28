@@ -4,6 +4,7 @@
 #include <sstream>
 #include <fstream>
 #include <vector>
+#include <deque>
 #include <unordered_map>
 #include <thread>
 #include <mutex>
@@ -75,13 +76,21 @@ struct Process
     public:
         ~MThreadingContext()
         {
-            wait();
+//            wait();
         }
 
         template<typename F, typename... Args> void run(F&& print, Args&&... args)
         {
             m_done = false;
             m_thread = std::thread{print, std::ref(m_mutex), std::ref(m_cv), std::ref(m_done), args...};
+            m_thread.detach();
+        }
+
+        template<typename F, typename... Args> void run2(F&& work, Args&&... args)
+        {
+            m_done = false;
+            m_thread = std::thread{work, std::ref(m_mutex), std::ref(m_cv), std::ref(m_done), args...};
+//            m_thread = std::thread{work, args...};
             m_thread.detach();
         }
 
@@ -111,7 +120,90 @@ struct Process
     Process(handler_t& h, CmdCollector& c):
         m_handler{h},
         m_commands{c}
-    {}
+    {
+        auto log_work = [](std::mutex& m, std::condition_variable& cv, std::atomic<bool>& done)
+        {
+            auto get = [](CmdCollector::cmds_t& cmds)
+            {
+                std::scoped_lock lk(Process::m_log_mutex);
+                if(Process::m_to_log_q.empty())
+                    return false;
+                cmds = std::move(Process::m_to_log_q.front());
+                Process::m_to_log_q.pop_front();
+                return true;
+            };
+
+            auto& stream{std::cout};
+            while(true)
+            {
+                {
+                    std::unique_lock lk{m};
+                    CmdCollector::cmds_t cmds;
+                    while(get(cmds))
+                    {
+                        stream << "bulk: ";
+                        std::size_t cntr = 0;
+                        for(const auto& cmd:cmds)
+                        {
+                            stream << cmd;
+                            if(++cntr < cmds.size())
+                                stream << ", ";
+                        }
+                        stream << '\n';
+                    }
+                    done = true;
+                }
+                cv.notify_all();
+                using namespace std::chrono;
+                std::this_thread::sleep_for(1ms);
+            }
+        };
+
+        auto fwork = [](std::mutex& m, std::condition_variable& cv, std::atomic<bool>& done)
+        {
+            auto get = [](std::string& fname, CmdCollector::cmds_t& cmds)
+            {
+                std::scoped_lock lk(Process::m_files_mutex);
+                if(Process::m_to_files_q.empty())
+                    return false;
+                fname = std::move(Process::m_to_files_q.front().first);
+                cmds = std::move(Process::m_to_files_q.front().second);
+                Process::m_to_files_q.pop_front();
+                return true;
+            };
+
+            std::string fname;
+            while(true)
+            {
+                {
+                    std::unique_lock lk{m};
+                    CmdCollector::cmds_t cmds;
+                    while(get(fname, cmds))
+                    {
+                        auto stream{std::fstream{fname, std::fstream::out | std::fstream::app}};
+                        stream << "bulk: ";
+                        std::size_t cntr = 0;
+                        for(const auto& cmd:cmds)
+                        {
+                            stream << cmd;
+                            if(++cntr < cmds.size())
+                                stream << ", ";
+                        }
+                        stream << '\n';
+                        stream.close();
+                    }
+                    done = true;
+                }
+                cv.notify_all();
+                using namespace std::chrono;
+                std::this_thread::sleep_for(1ms);
+            }
+        };
+
+        m_log.run2(log_work);
+        m_f1.run2(fwork);
+        m_f2.run2(fwork);
+    }
 
     static void wait()
     {
@@ -122,29 +214,29 @@ struct Process
 
     void operator()(std::string&& read)
     {
-        auto print = [](std::mutex& m, std::condition_variable& cv, std::atomic<bool>& done, std::ostream& stream, CmdCollector::cmds_t cmds)
-        {
-            {
-                std::unique_lock lk{m};
-                stream << "bulk: ";
-                std::size_t cntr = 0;
-                for(const auto& cmd:cmds)
-                {
-                    stream << cmd;
-                    if(++cntr < cmds.size())
-                        stream << ", ";
-                }
-                stream << '\n';
-                done = true;
-            }
-            cv.notify_all();
-        };
+        //auto print = [](std::mutex& m, std::condition_variable& cv, std::atomic<bool>& done, std::ostream& stream, CmdCollector::cmds_t cmds)
+        //{
+        //    {
+        //        std::unique_lock lk{m};
+        //        stream << "bulk: ";
+        //        std::size_t cntr = 0;
+        //        for(const auto& cmd:cmds)
+        //        {
+        //            stream << cmd;
+        //            if(++cntr < cmds.size())
+        //                stream << ", ";
+        //        }
+        //        stream << '\n';
+        //        done = true;
+        //    }
+        //    cv.notify_all();
+        //};
 
-        auto print2 = [&print](std::mutex& m, std::condition_variable& cv, std::atomic<bool>& done, std::fstream& stream, CmdCollector::cmds_t cmds)
-        {
-            print(m, cv, done, stream, std::move(cmds));
-            stream.close();
-        };
+        //auto print2 = [&print](std::mutex& m, std::condition_variable& cv, std::atomic<bool>& done, std::fstream& stream, CmdCollector::cmds_t cmds)
+        //{
+        //    print(m, cv, done, stream, std::move(cmds));
+        //    stream.close();
+        //};
 
         m_commands.process_cmd(std::move(read));
         read.clear();
@@ -152,28 +244,31 @@ struct Process
         {
             const auto cmds{std::move(m_commands.get_cmds())};
 
-            m_log.wait();
-            m_log.run(print, std::ref(std::cout), cmds);
+            m_to_log_q.push_back(cmds);
+
+            //m_log.wait();
+            //m_log.run(print, std::ref(std::cout), cmds);
 
             std::stringstream fname;
             fname << "bulk-" << (unsigned long long)m_handler << '-' << m_commands.block_start_time(0) << '-' << ++m_fcntr << ".log";
+            m_to_files_q.push_back(std::make_pair(fname.str(), std::move(cmds)));
 
-            if(m_f1.ready())
-            {
-                m_file1 = std::fstream{fname.str(), std::fstream::out | std::fstream::app};
-                m_f1.run(print2, std::ref(m_file1), std::move(cmds));
-            }
-            else if(m_f2.ready())
-            {
-                m_file2 = std::fstream{fname.str(), std::fstream::out | std::fstream::app};
-                m_f2.run(print2, std::ref(m_file2), std::move(cmds));
-            }
-            else
-            {
-                m_f1.wait();
-                m_file1 = std::fstream{fname.str(), std::fstream::out | std::fstream::app};
-                m_f1.run(print2, std::ref(m_file1), std::move(cmds));
-            }
+            //if(m_f1.ready())
+            //{
+            //    m_file1 = std::fstream{fname.str(), std::fstream::out | std::fstream::app};
+            //    m_f1.run(print2, std::ref(m_file1), std::move(cmds));
+            //}
+            //else if(m_f2.ready())
+            //{
+            //    m_file2 = std::fstream{fname.str(), std::fstream::out | std::fstream::app};
+            //    m_f2.run(print2, std::ref(m_file2), std::move(cmds));
+            //}
+            //else
+            //{
+            //    m_f1.wait();
+            //    m_file1 = std::fstream{fname.str(), std::fstream::out | std::fstream::app};
+            //    m_f1.run(print2, std::ref(m_file1), std::move(cmds));
+            //}
 
             m_commands.clear_commands();
         }
@@ -185,6 +280,13 @@ struct Process
     static MThreadingContext m_f1, m_f2, m_log;
     static std::fstream m_file1, m_file2;
     static std::size_t m_fcntr;
+
+    using log_queue_t = std::deque<CmdCollector::cmds_t>;
+    using fqueue_t = std::deque<std::pair<std::string, CmdCollector::cmds_t>>;
+    static log_queue_t m_to_log_q;
+    static fqueue_t m_to_files_q;
+    static std::mutex m_log_mutex;
+    static std::mutex m_files_mutex;
 };
 
 Process::MThreadingContext Process::m_f1{};
@@ -193,6 +295,11 @@ Process::MThreadingContext Process::m_log{};
 std::fstream Process::m_file1{};
 std::fstream Process::m_file2{};
 std::size_t Process::m_fcntr = 0;
+
+Process::log_queue_t Process::m_to_log_q;
+Process::fqueue_t Process::m_to_files_q;
+std::mutex Process::m_log_mutex;
+std::mutex Process::m_files_mutex;
 
 }
 

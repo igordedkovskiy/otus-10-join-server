@@ -40,6 +40,9 @@ void single_thread()
         async::receive(h1, "cmd5\n", 5);
         async::disconnect(h1);
     }
+
+    using namespace std::chrono;
+    std::this_thread::sleep_for(10ms);
 }
 
 int main()
