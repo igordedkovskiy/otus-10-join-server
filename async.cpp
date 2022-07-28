@@ -14,13 +14,14 @@
 #include <type_traits>
 
 #include "CmdCollector.hpp"
-#include "async.hpp"
+#include "async.h"
 #include "read_input.hpp"
-
-template<typename T> struct TD;
 
 namespace
 {
+
+using size_type = async::size_type;
+using handler_t = async::handler_t;
 
 class Handlers
 {
@@ -198,6 +199,9 @@ std::size_t Process::m_fcntr = 0;
 extern "C"
 {
 
+namespace async
+{
+
 handler_t connect(size_type bulk_size)
 {
     return Handlers::get().create(std::make_unique<CmdCollector>(CmdCollector{bulk_size}));
@@ -245,6 +249,8 @@ void receive(handler_t h, const char* data, size_type data_size)
 void wait()
 {
     Process::wait();
+}
+
 }
 
 }

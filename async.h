@@ -5,6 +5,9 @@
 extern "C"
 {
 
+namespace async
+{
+
 using size_type = std::size_t;
 using handler_t = void*;
 
@@ -19,5 +22,7 @@ int disconnect(handler_t h);
 void receive(handler_t h, const char* data, size_type data_size);
 
 void wait();
+
+}
 
 }

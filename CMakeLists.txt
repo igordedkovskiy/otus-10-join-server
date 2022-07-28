@@ -16,8 +16,8 @@ list(APPEND EXTRA_LINKS ${CMAKE_THREAD_LIBS_INIT})
 add_executable(${PROJECT_NAME}
     "main.cpp"
 )
-add_library(async_lib
-    "async.hpp"
+add_library(async_lib SHARED
+    "async.h"
     "async.cpp"
     "CmdCollector.hpp"
     "CmdCollector.cpp"
