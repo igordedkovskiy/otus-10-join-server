@@ -9,11 +9,15 @@
 #include <mutex>
 #include <condition_variable>
 #include <memory>
+#include <functional>
 #include <cstdint>
+#include <type_traits>
 
 #include "CmdCollector.hpp"
 #include "async.hpp"
 #include "read_input.hpp"
+
+template<typename T> struct TD;
 
 namespace
 {
@@ -63,43 +67,41 @@ private:
     handlers_t m_handlers;
 };
 
-
-class MThreadingContext
-{
-public:
-    void run(void(*print)(std::ostream&, CmdCollector::cmds_t, std::mutex&, std::condition_variable&, std::atomic<bool>&),
-             std::ostream& stream, CmdCollector::cmds_t cmds)
-    {
-        m_thread = std::thread{print, std::ref(stream), std::move(cmds), std::ref(m_mutex), std::ref(m_cv), std::ref(m_done)};
-        m_done = false;
-        m_thread.detach();
-    }
-
-    void wait()
-    {
-        if(!m_done)
-        {
-            std::unique_lock lk(m_mutex);
-            m_cv.wait(lk);
-        }
-    }
-
-    bool ready() const noexcept
-    {
-        return m_done;
-    }
-
-private:
-    std::mutex m_mutex;
-    std::condition_variable m_cv;
-    std::atomic<bool> m_done{true};
-    std::thread m_thread;
-    std::fstream file;
-};
-
-
 struct Process
 {
+    class MThreadingContext
+    {
+    public:
+        template<typename F, typename... Args> void run(F&& print, Args&&... args)
+        {
+            m_done = false;
+            m_thread = std::thread{print, std::ref(m_mutex), std::ref(m_cv), std::ref(m_done), args...};
+            m_thread.detach();
+        }
+
+        void wait()
+        {
+            if(!m_done)
+            {
+                std::unique_lock lk(m_mutex);
+                m_cv.wait(lk);
+            }
+        }
+
+        bool ready() const noexcept
+        {
+            return m_done;
+        }
+
+    private:
+        std::mutex m_mutex;
+        std::condition_variable m_cv;
+        std::atomic<bool> m_done{true};
+        std::thread m_thread;
+        std::fstream file;
+    };
+
+
     Process(handler_t& h, CmdCollector& c):
         m_handler{h},
         m_commands{c}
@@ -108,16 +110,13 @@ struct Process
     static void wait()
     {
         m_f1.wait();
-        m_file1.close();
         m_f2.wait();
-        m_file2.close();
         m_log.wait();
     }
 
     void operator()(std::string&& read)
     {
-        auto print = [](std::ostream& stream, CmdCollector::cmds_t cmds,
-                std::mutex& m, std::condition_variable& cv, std::atomic<bool>& done)
+        auto print = [](std::mutex& m, std::condition_variable& cv, std::atomic<bool>& done, std::ostream& stream, CmdCollector::cmds_t cmds)
         {
             {
                 std::unique_lock lk{m};
@@ -135,6 +134,12 @@ struct Process
             cv.notify_all();
         };
 
+        auto print2 = [&print](std::mutex& m, std::condition_variable& cv, std::atomic<bool>& done, std::fstream& stream, CmdCollector::cmds_t cmds)
+        {
+            print(m, cv, done, stream, std::move(cmds));
+            stream.close();
+        };
+
         m_commands.process_cmd(std::move(read));
         read.clear();
         if(m_commands.input_block_finished())
@@ -142,7 +147,7 @@ struct Process
             const auto cmds{std::move(m_commands.get_cmds())};
 
             m_log.wait();
-            m_log.run(print, std::cout, cmds);
+            m_log.run(print, std::ref(std::cout), cmds);
 
             std::stringstream fname;
             fname << "bulk-" << (unsigned long long)m_handler << '-' << m_commands.block_start_time(0) << '-' << ++m_fcntr << ".log";
@@ -150,18 +155,18 @@ struct Process
             if(m_f1.ready())
             {
                 m_file1 = std::fstream{fname.str(), std::fstream::out | std::fstream::app};
-                m_f1.run(print, m_file1, std::move(cmds));
+                m_f1.run(print2, std::ref(m_file1), std::move(cmds));
             }
             else if(m_f2.ready())
             {
                 m_file2 = std::fstream{fname.str(), std::fstream::out | std::fstream::app};
-                m_f2.run(print, m_file2, std::move(cmds));
+                m_f2.run(print2, std::ref(m_file2), std::move(cmds));
             }
             else
             {
                 m_f1.wait();
                 m_file1 = std::fstream{fname.str(), std::fstream::out | std::fstream::app};
-                m_f1.run(print, m_file1, std::move(cmds));
+                m_f1.run(print2, std::ref(m_file1), std::move(cmds));
             }
 
             m_commands.clear_commands();
@@ -176,9 +181,9 @@ struct Process
     static std::size_t m_fcntr;
 };
 
-MThreadingContext Process::m_f1{};
-MThreadingContext Process::m_f2{};
-MThreadingContext Process::m_log{};
+Process::MThreadingContext Process::m_f1{};
+Process::MThreadingContext Process::m_f2{};
+Process::MThreadingContext Process::m_log{};
 std::fstream Process::m_file1{};
 std::fstream Process::m_file2{};
 std::size_t Process::m_fcntr = 0;
