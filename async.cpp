@@ -111,11 +111,11 @@ void fwork(std::mutex& m, std::condition_variable& cv, bool& ready);
 class MThreading
 {
 public:
-//    static MThreading& get()
-//    {
-//        static MThreading v;
-//        return v;
-//    }
+    static MThreading& get()
+    {
+        static MThreading v;
+        return v;
+    }
 
     ~MThreading()
     {
@@ -147,24 +147,24 @@ public:
     MThreadingContext<fqueue_t> m_f1{m_to_files_q, fwork}, m_f2{m_to_files_q, fwork};
 };
 
-MThreading worker;
+//MThreading worker;
 
 void log_work(std::mutex& m, std::condition_variable& cv, bool& ready)
 {
     auto get = [](CmdCollector::cmds_t& cmds)
     {
         {
-            //std::scoped_lock lk{MThreading::get().m_logq_mutex};
-            //if(MThreading::get().m_to_log_q.empty())
-            //    return false;
-            //cmds = std::move(MThreading::get().m_to_log_q.front());
-            //MThreading::get().m_to_log_q.pop_front();
-
-            std::scoped_lock lk{worker.m_logq_mutex};
-            if(worker.m_to_log_q.empty())
+            std::scoped_lock lk{MThreading::get().m_logq_mutex};
+            if(MThreading::get().m_to_log_q.empty())
                 return false;
-            cmds = std::move(worker.m_to_log_q.front());
-            worker.m_to_log_q.pop_front();
+            cmds = std::move(MThreading::get().m_to_log_q.front());
+            MThreading::get().m_to_log_q.pop_front();
+
+//            std::scoped_lock lk{worker.m_logq_mutex};
+//            if(worker.m_to_log_q.empty())
+//                return false;
+//            cmds = std::move(worker.m_to_log_q.front());
+//            worker.m_to_log_q.pop_front();
         }
         return true;
     };
@@ -201,20 +201,19 @@ void fwork(std::mutex& m, std::condition_variable& cv, bool& ready)
     auto get = [](std::string& fname, CmdCollector::cmds_t& cmds)
     {
         {
-            //std::scoped_lock lk{MThreading::get().m_filesq_mutex};
-            //if(MThreading::get().m_to_files_q.empty())
-            //    return false;
-            //fname = std::move(MThreading::get().m_to_files_q.front().first);
-            //cmds = std::move(MThreading::get().m_to_files_q.front().second);
-            //MThreading::get().m_to_files_q.pop_front();
-
-
-            std::scoped_lock lk{worker.m_filesq_mutex};
-            if(worker.m_to_files_q.empty())
+            std::scoped_lock lk{MThreading::get().m_filesq_mutex};
+            if(MThreading::get().m_to_files_q.empty())
                 return false;
-            fname = std::move(worker.m_to_files_q.front().first);
-            cmds = std::move(worker.m_to_files_q.front().second);
-            worker.m_to_files_q.pop_front();
+            fname = std::move(MThreading::get().m_to_files_q.front().first);
+            cmds = std::move(MThreading::get().m_to_files_q.front().second);
+            MThreading::get().m_to_files_q.pop_front();
+
+//            std::scoped_lock lk{worker.m_filesq_mutex};
+//            if(worker.m_to_files_q.empty())
+//                return false;
+//            fname = std::move(worker.m_to_files_q.front().first);
+//            cmds = std::move(worker.m_to_files_q.front().second);
+//            worker.m_to_files_q.pop_front();
         }
         return true;
     };
@@ -263,23 +262,25 @@ struct Process
         if(m_commands.input_block_finished())
         {
             {
-                //std::lock_guard lk{MThreading::get().m_logq_mutex};
-                //MThreading::get().m_to_log_q.push_back(m_commands.get_cmds());
-                std::lock_guard lk{worker.m_logq_mutex};
-                worker.m_to_log_q.push_back(m_commands.get_cmds());
+                std::lock_guard lk{MThreading::get().m_logq_mutex};
+                MThreading::get().m_to_log_q.push_back(m_commands.get_cmds());
+//                std::lock_guard lk{worker.m_logq_mutex};
+//                worker.m_to_log_q.push_back(m_commands.get_cmds());
+
 //                m_log.get_ready();
             }
 
             std::stringstream fname;
-//            fname << "bulk-" << (unsigned long long)m_handler << '-' << m_commands.block_start_time(0) << '-' << ++MThreading::get().m_fcntr << ".log";
+            fname << "bulk-" << (unsigned long long)m_handler << '-' << m_commands.block_start_time(0) << '-' << ++MThreading::get().m_fcntr << ".log";
 //            fname << "./bulk/bulk-" << (unsigned long long)m_handler << '-' << m_commands.block_start_time(0) << '-' << ++MThreading::get().m_fcntr << ".log";
-            fname << "./bulk/bulk-" << (unsigned long long)m_handler << '-' << m_commands.block_start_time(0) << '-' << ++worker.m_fcntr << ".log";
+//            fname << "./bulk/bulk-" << (unsigned long long)m_handler << '-' << m_commands.block_start_time(0) << '-' << ++worker.m_fcntr << ".log";
             {
-                //std::lock_guard lk{MThreading::get().m_filesq_mutex};
-                //MThreading::get().m_to_files_q.emplace_back(std::make_pair(fname.str(), std::move(m_commands.get_cmds())));
-                std::lock_guard lk{worker.m_filesq_mutex};
-                worker.m_to_files_q.emplace_back(std::make_pair(fname.str(), std::move(m_commands.get_cmds())));
-//                m_f1.get_ready();
+                std::lock_guard lk{MThreading::get().m_filesq_mutex};
+                MThreading::get().m_to_files_q.emplace_back(std::make_pair(fname.str(), std::move(m_commands.get_cmds())));
+//                std::lock_guard lk{worker.m_filesq_mutex};
+//                worker.m_to_files_q.emplace_back(std::make_pair(fname.str(), std::move(m_commands.get_cmds())));
+
+                //                m_f1.get_ready();
 //                m_f2.get_ready();
             }
             m_commands.clear_commands();
@@ -347,8 +348,8 @@ void receive(handler_t h, const char* data, size_type data_size)
 
 void wait()
 {
-//    MThreading::get().wait();
-    worker.wait();
+    MThreading::get().wait();
+//    worker.wait();
 }
 
 

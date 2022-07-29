@@ -20,7 +20,8 @@ auto find_file(std::string masks)
 {
     const auto regexp_cmp{std::regex(masks)};
     namespace fs = std::filesystem;
-    const auto path{fs::absolute("./bulk")};
+    const auto path{fs::absolute(".")};
+//    const auto path{fs::absolute("./bulk")};
     using iterator = fs::directory_iterator;
     std::vector<std::string> fnames;
     for(auto it{iterator(path)}; it != iterator(); ++it)
@@ -69,19 +70,23 @@ TEST(TEST_ASYNC, async_sinlge_thread)
     const auto h1{async::connect(bulk_size)};
     const auto h2{async::connect(bulk_size)};
 
-    async::receive(h2, "cmd1\n", 5);
-    async::receive(h1, "cmd1\ncmd2\n", 10);
-    async::receive(h2, "cmd2\n{\ncmd3\ncmd4\n}\n", 19);
-    async::receive(h2, "{\n", 2);
-    async::receive(h2, "cmd5\ncmd6\n{\ncmd7\ncmd8\n}\ncmd9\n}\n", 31);
-    async::receive(h1, "cmd3\ncmd4\n", 10);
-    async::receive(h2, "{\ncmd10\ncmd11\n", 12);
-    async::receive(h1, "cmd5\n", 5);
+    {
+        async::receive(h2, "cmd1\n", 5);
+        async::receive(h1, "cmd1\ncmd2\n", 10);
+        async::receive(h2, "cmd2\n{\ncmd3\ncmd4\n}\n", 19);
+        async::receive(h2, "{\n", 2);
+        async::receive(h2, "cmd5\ncmd6\n{\ncmd7\ncmd8\n}\ncmd9\n}\n", 31);
+        async::receive(h1, "cmd3\ncmd4\n", 10);
+        async::receive(h2, "{\ncmd10\ncmd11\n", 12);
+        async::receive(h1, "cmd5\n", 5);
 
-    async::disconnect(h1);
-    async::disconnect(h2);
+        async::disconnect(h1);
+        async::disconnect(h2);
+    }
 
     async::wait();
+//    using namespace std::chrono_literals;
+//    std::this_thread::sleep_for(100ms);
 
     // context 1
     std::cout << "masks:" << std::endl;
