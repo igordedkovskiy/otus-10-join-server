@@ -9,6 +9,8 @@
 
 void single_thread()
 {
+    async::run();
+
     constexpr async::size_type bulk_size{3};
 
     const auto h1{async::connect(bulk_size)};
@@ -40,9 +42,9 @@ void single_thread()
         async::receive(h1, "cmd5\n", 5);
         async::disconnect(h1);
     }
-
-    using namespace std::chrono;
-    std::this_thread::sleep_for(10ms);
+    async::wait();
+//    using namespace std::chrono;
+//    std::this_thread::sleep_for(50ms);
 }
 
 int main()

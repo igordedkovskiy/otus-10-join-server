@@ -26,6 +26,8 @@ void receive(handler_t h, const char* data, size_type data_size);
 ///        until files are closed by a library.
 void wait();
 
+void run();
+
 }
 
 }
