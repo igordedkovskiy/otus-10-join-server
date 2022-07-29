@@ -20,12 +20,13 @@ auto find_file(std::string masks)
 {
     const auto regexp_cmp{std::regex(masks)};
     namespace fs = std::filesystem;
-    const auto path{fs::absolute(".")};
+    const auto path{fs::absolute("./bulk")};
     using iterator = fs::directory_iterator;
     std::vector<std::string> fnames;
     for(auto it{iterator(path)}; it != iterator(); ++it)
     {
         const auto path{fs::absolute(it->path())};
+        std::cout << path << std::endl;
         if(!fs::is_directory(path))
         {
             const auto fname{path.filename().string()};
@@ -50,7 +51,13 @@ bool check(std::stringstream ref, std::string masks)
         std::stringstream out;
         out << file.rdbuf();
         if(out.str() == ref.str())
+        {
+            std::cout << "File " << fn << " fits" << std::endl;
             return true;
+        }
+        std::cout << "File " << fn << " doesn't fit" << std::endl;
+        std::cout << "File: " << out.str() << std::endl;
+        std::cout << "Ref:  " << ref.str() << std::endl;
     }
     return false;
 }
@@ -59,8 +66,6 @@ bool check(std::stringstream ref, std::string masks)
 
 TEST(TEST_ASYNC, async_sinlge_thread)
 {
-    async::run();
-
     const auto h1{async::connect(bulk_size)};
     const auto h2{async::connect(bulk_size)};
 
@@ -77,20 +82,24 @@ TEST(TEST_ASYNC, async_sinlge_thread)
     async::disconnect(h2);
 
     async::wait();
-//    using namespace std::chrono;
-//    std::this_thread::sleep_for(10ms);
 
     // context 1
+    std::cout << "masks:" << std::endl;
+    std::cout << std::string{"(bulk-" + std::to_string((unsigned long long)h1) + "-.*.log)"} << std::endl;
     ASSERT_TRUE(check(std::stringstream{"bulk: cmd1, cmd2, cmd3\n"},
                       "(bulk-" + std::to_string((unsigned long long)h1) + "-.*.log)"));
+    std::cout << std::string{"(bulk-" + std::to_string((unsigned long long)h1) + "-.*.log)"} << std::endl;
     ASSERT_TRUE(check(std::stringstream{"bulk: cmd4, cmd5\n"},
                       "(bulk-" + std::to_string((unsigned long long)h1) + "-.*.log)"));
 
     // context 2
+    std::cout << std::string{"(bulk-" + std::to_string((unsigned long long)h2) + "-.*.log)"} << std::endl;
     ASSERT_TRUE(check(std::stringstream{"bulk: cmd1, cmd2\n"},
                       "(bulk-" + std::to_string((unsigned long long)h2) + "-.*.log)"));
+    std::cout << std::string{"(bulk-" + std::to_string((unsigned long long)h2) + "-.*.log)"} << std::endl;
     ASSERT_TRUE(check(std::stringstream{"bulk: cmd3, cmd4\n"},
                       "(bulk-" + std::to_string((unsigned long long)h2) + "-.*.log)"));
+    std::cout << std::string{"(bulk-" + std::to_string((unsigned long long)h2) + "-.*.log)"} << std::endl;
     ASSERT_TRUE(check(std::stringstream{"bulk: cmd5, cmd6, cmd7, cmd8, cmd9\n"},
                       "(bulk-" + std::to_string((unsigned long long)h2) + "-.*.log)"));
 }

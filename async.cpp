@@ -21,25 +21,6 @@
 namespace
 {
 
-struct TestLog
-{
-    static TestLog& get()
-    {
-        static TestLog t;
-        return t;
-    }
-    std::fstream& log()
-    {
-        return m_file;
-    }
-    ~TestLog()
-    {
-        if(m_file.is_open())
-            m_file.close();
-    }
-    std::fstream m_file;//{std::fstream{"./bulk/01.log", std::fstream::out | std::fstream::app}};
-};
-
 using size_type = async::size_type;
 using handler_t = async::handler_t;
 
@@ -88,146 +69,103 @@ private:
     handlers_t m_handlers;
 };
 
-void log_work(std::mutex& m, std::condition_variable& cv, bool& ready);
-void fwork(std::mutex& m, std::condition_variable& cv, bool& ready);
-struct Process
-{
-    Process(handler_t& h, CmdCollector& c):
-        m_handler{h},
-        m_commands{c}
-    {}
 
-    static void run()
+template<typename Q> class MThreadingContext
+{
+public:
+    template<typename F, typename... Args> MThreadingContext(Q& q, F&& work, Args&&... args):
+        m_queue{q},
+        m_thread{std::thread{work, std::ref(m_mutex), std::ref(m_cv), std::ref(m_ready), args...}}
     {
-        m_log.run(log_work);
-        m_f1.run(fwork);
-        m_f2.run(fwork);
+        m_thread.detach();
     }
 
-    static void wait()
+    ~MThreadingContext()
     {
-        m_f1.wait();
+        wait();
+    }
+
+    //template<typename F, typename... Args> void run(F&& work, Args&&... args)
+    //{
+    //    m_thread = std::thread{work, std::ref(m_mutex), std::ref(m_cv), std::ref(m_ready), args...};
+    //    m_thread.detach();
+    //}
+
+    void wait()
+    {
+        std::unique_lock lk{m_mutex};
+        while(!m_ready || !m_queue.empty())
+            m_cv.wait(lk);
+    }
+
+private:
+    Q& m_queue;
+    bool m_ready{true};
+    std::mutex m_mutex;
+    std::condition_variable m_cv;
+    std::thread m_thread;
+};
+
+void log_work(std::mutex& m, std::condition_variable& cv, bool& ready);
+void fwork(std::mutex& m, std::condition_variable& cv, bool& ready);
+class MThreading
+{
+public:
+//    static MThreading& get()
+//    {
+//        static MThreading v;
+//        return v;
+//    }
+
+    ~MThreading()
+    {
+//        wait();
+    }
+
+    void wait()
+    {
         m_f2.wait();
+        m_f1.wait();
         m_log.wait();
     }
 
-    void operator()(std::string&& read)
-    {
-        TestLog::get().log() << "enter ";
-        TestLog::get().log() << __PRETTY_FUNCTION__ << std::endl;
-        m_commands.process_cmd(std::move(read));
-        read.clear();
-        if(m_commands.input_block_finished())
-        {
-            {
-                std::lock_guard lk{m_logq_mutex};
-                m_to_log_q.push_back(m_commands.get_cmds());
-//                m_log.get_ready();
-            }
-
-            std::stringstream fname;
-            fname << "./bulk/bulk-" << (unsigned long long)m_handler << '-' << m_commands.block_start_time(0) << '-' << ++m_fcntr << ".log";
-            {
-                std::lock_guard lk{m_filesq_mutex};
-                m_to_files_q.emplace_back(std::make_pair(fname.str(), std::move(m_commands.get_cmds())));
-//                m_f1.get_ready();
-//                m_f2.get_ready();
-            }
-            m_commands.clear_commands();
-        }
-        TestLog::get().log() << "leave ";
-        TestLog::get().log() << __PRETTY_FUNCTION__ << std::endl;
-    }
-
-
-
-    handler_t& m_handler;
-    CmdCollector& m_commands;
-
-
-    class MThreadingContext
-    {
-    public:
-        ~MThreadingContext()
-        {
-            wait();
-        }
-
-        template<typename F, typename... Args> void run(F&& work, Args&&... args)
-        {
-            TestLog::get().log() << __PRETTY_FUNCTION__ << std::endl;
-            m_thread = std::thread{work, std::ref(m_mutex), std::ref(m_cv), std::ref(m_ready), args...};
-            m_thread.detach();
-        }
-
-        void wait()
-        {
-            TestLog::get().log() << "enter ";
-            TestLog::get().log() << __PRETTY_FUNCTION__ << std::endl;
-            std::unique_lock lk{m_mutex};
-            while(!m_ready)
-            //while(!m_ready || !Process::m_to_files_q.empty() || !Process::m_to_log_q.empty())
-                m_cv.wait(lk);
-            TestLog::get().log() << "leave ";
-            TestLog::get().log() << __PRETTY_FUNCTION__ << std::endl;
-        }
-
-        void get_ready()
-        {
-            std::scoped_lock lk{m_mutex};
-            m_ready = false;
-        }
-
-    private:
-        bool m_ready{true};
-        std::mutex m_mutex;
-        std::condition_variable m_cv;
-        std::thread m_thread;
-    };
+//private:
+    MThreading() = default;
 
     using log_queue_t = std::deque<CmdCollector::cmds_t>;
     using fqueue_t = std::deque<std::pair<std::string, CmdCollector::cmds_t>>;
-    static log_queue_t m_to_log_q;
-    static fqueue_t m_to_files_q;
-    static std::mutex m_logq_mutex;
-    static std::mutex m_filesq_mutex;
 
-    static std::size_t m_fcntr;
-    static MThreadingContext m_f1;
-    static MThreadingContext m_f2;
-    static MThreadingContext m_log;
+    log_queue_t m_to_log_q;
+    fqueue_t m_to_files_q;
+
+    std::mutex m_logq_mutex;
+    std::mutex m_filesq_mutex;
+
+    std::size_t m_fcntr{0};
+
+    MThreadingContext<log_queue_t> m_log{m_to_log_q, log_work};
+    MThreadingContext<fqueue_t> m_f1{m_to_files_q, fwork}, m_f2{m_to_files_q, fwork};
 };
 
-Process::log_queue_t Process::m_to_log_q;
-Process::fqueue_t Process::m_to_files_q;
-std::mutex Process::m_logq_mutex;
-std::mutex Process::m_filesq_mutex;
-
-Process::MThreadingContext Process::m_f1{};
-Process::MThreadingContext Process::m_f2{};
-Process::MThreadingContext Process::m_log{};
-std::size_t Process::m_fcntr = 0;
+MThreading worker;
 
 void log_work(std::mutex& m, std::condition_variable& cv, bool& ready)
 {
     auto get = [](CmdCollector::cmds_t& cmds)
     {
-//        try
         {
-            std::scoped_lock lk{Process::m_logq_mutex};
-            if(Process::m_to_log_q.empty())
-            {
-                //TestLog::get().log() << "log queue is empty\n";
+            //std::scoped_lock lk{MThreading::get().m_logq_mutex};
+            //if(MThreading::get().m_to_log_q.empty())
+            //    return false;
+            //cmds = std::move(MThreading::get().m_to_log_q.front());
+            //MThreading::get().m_to_log_q.pop_front();
+
+            std::scoped_lock lk{worker.m_logq_mutex};
+            if(worker.m_to_log_q.empty())
                 return false;
-            }
-            cmds = std::move(Process::m_to_log_q.front());
-            Process::m_to_log_q.pop_front();
+            cmds = std::move(worker.m_to_log_q.front());
+            worker.m_to_log_q.pop_front();
         }
-//        catch(std::exception& e)
-//        {
-//            TestLog::get().log() << "Exception: " << e.what() << '\n';
-//            return false;
-//        }
         return true;
     };
 
@@ -235,9 +173,6 @@ void log_work(std::mutex& m, std::condition_variable& cv, bool& ready)
     while(true)
     {
         {
-            TestLog::get().log() << "thread id = " << std::this_thread::get_id() << " ";
-            TestLog::get().log() << "new cycle ";
-            TestLog::get().log() << __PRETTY_FUNCTION__ << std::endl;
             std::scoped_lock lk{m};
             ready = false;
             CmdCollector::cmds_t cmds;
@@ -255,10 +190,7 @@ void log_work(std::mutex& m, std::condition_variable& cv, bool& ready)
             }
             ready = true;
         }
-        TestLog::get().log() << "thread id = " << std::this_thread::get_id() << " ";
-        TestLog::get().log() << "leave cycle ";
-        TestLog::get().log() << __PRETTY_FUNCTION__ << std::endl;
-        cv.notify_one();
+        cv.notify_all();
         using namespace std::chrono_literals;
         std::this_thread::sleep_for(1ms);
     }
@@ -268,23 +200,22 @@ void fwork(std::mutex& m, std::condition_variable& cv, bool& ready)
 {
     auto get = [](std::string& fname, CmdCollector::cmds_t& cmds)
     {
-//        try
         {
-            std::scoped_lock lk{Process::m_filesq_mutex};
-            if(Process::m_to_files_q.empty())
-            {
-                //TestLog::get().log() << "fqueue is empty\n";
+            //std::scoped_lock lk{MThreading::get().m_filesq_mutex};
+            //if(MThreading::get().m_to_files_q.empty())
+            //    return false;
+            //fname = std::move(MThreading::get().m_to_files_q.front().first);
+            //cmds = std::move(MThreading::get().m_to_files_q.front().second);
+            //MThreading::get().m_to_files_q.pop_front();
+
+
+            std::scoped_lock lk{worker.m_filesq_mutex};
+            if(worker.m_to_files_q.empty())
                 return false;
-            }
-            fname = std::move(Process::m_to_files_q.front().first);
-            cmds = std::move(Process::m_to_files_q.front().second);
-            Process::m_to_files_q.pop_front();
+            fname = std::move(worker.m_to_files_q.front().first);
+            cmds = std::move(worker.m_to_files_q.front().second);
+            worker.m_to_files_q.pop_front();
         }
-//        catch(std::exception& e)
-//        {
-//            TestLog::get().log() << "Exception: " << e.what() << '\n';
-//            return false;
-//        }
         return true;
     };
 
@@ -292,9 +223,6 @@ void fwork(std::mutex& m, std::condition_variable& cv, bool& ready)
     while(true)
     {
         {
-            TestLog::get().log() << "thread id = " << std::this_thread::get_id() << " ";
-            TestLog::get().log() << "new cycle ";
-            TestLog::get().log() << __PRETTY_FUNCTION__ << std::endl;
             std::scoped_lock lk{m};
             ready = false;
             CmdCollector::cmds_t cmds;
@@ -314,14 +242,54 @@ void fwork(std::mutex& m, std::condition_variable& cv, bool& ready)
             }
             ready = true;
         }
-        TestLog::get().log() << "thread id = " << std::this_thread::get_id() << " ";
-        TestLog::get().log() << "leave cycle ";
-        TestLog::get().log() << __PRETTY_FUNCTION__ << std::endl;
-        cv.notify_one();
+        cv.notify_all();
         using namespace std::chrono_literals;
         std::this_thread::sleep_for(1ms);
     }
 }
+
+
+struct Process
+{
+    Process(handler_t& h, CmdCollector& c):
+        m_handler{h},
+        m_commands{c}
+    {}
+
+    void operator()(std::string&& read)
+    {
+        m_commands.process_cmd(std::move(read));
+        read.clear();
+        if(m_commands.input_block_finished())
+        {
+            {
+                //std::lock_guard lk{MThreading::get().m_logq_mutex};
+                //MThreading::get().m_to_log_q.push_back(m_commands.get_cmds());
+                std::lock_guard lk{worker.m_logq_mutex};
+                worker.m_to_log_q.push_back(m_commands.get_cmds());
+//                m_log.get_ready();
+            }
+
+            std::stringstream fname;
+//            fname << "bulk-" << (unsigned long long)m_handler << '-' << m_commands.block_start_time(0) << '-' << ++MThreading::get().m_fcntr << ".log";
+//            fname << "./bulk/bulk-" << (unsigned long long)m_handler << '-' << m_commands.block_start_time(0) << '-' << ++MThreading::get().m_fcntr << ".log";
+            fname << "./bulk/bulk-" << (unsigned long long)m_handler << '-' << m_commands.block_start_time(0) << '-' << ++worker.m_fcntr << ".log";
+            {
+                //std::lock_guard lk{MThreading::get().m_filesq_mutex};
+                //MThreading::get().m_to_files_q.emplace_back(std::make_pair(fname.str(), std::move(m_commands.get_cmds())));
+                std::lock_guard lk{worker.m_filesq_mutex};
+                worker.m_to_files_q.emplace_back(std::make_pair(fname.str(), std::move(m_commands.get_cmds())));
+//                m_f1.get_ready();
+//                m_f2.get_ready();
+            }
+            m_commands.clear_commands();
+        }
+    }
+
+    handler_t& m_handler;
+    CmdCollector& m_commands;
+};
+
 
 }
 
@@ -379,26 +347,10 @@ void receive(handler_t h, const char* data, size_type data_size)
 
 void wait()
 {
-    auto wait_for_queue = [](const auto& q, std::mutex& m)
-    {
-        while(true)
-        {
-            std::scoped_lock lk{m};
-            if(q.empty())
-                return;
-            using namespace std::chrono_literals;
-            std::this_thread::sleep_for(1ms);
-        }
-    };
-    wait_for_queue(Process::m_to_log_q, Process::m_logq_mutex);
-    wait_for_queue(Process::m_to_files_q, Process::m_filesq_mutex);
-    Process::wait();
+//    MThreading::get().wait();
+    worker.wait();
 }
 
-void run()
-{
-    Process::run();
-}
 
 }
 
