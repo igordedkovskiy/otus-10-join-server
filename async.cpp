@@ -23,7 +23,7 @@ namespace
 {
 
 Handlers handlers;
-MThreading context;
+Queues queues;
 
 struct Process
 {
@@ -38,28 +38,23 @@ struct Process
         read.clear();
         if(m_commands.input_block_finished())
         {
-            {
-                std::lock_guard lk{context.m_logq_mutex};
-                context.m_to_log_q.push_back(m_commands.get_cmds());
-                context.m_log.m_ready = false;
-            }
+            queues.push(m_commands.get_cmds());
 
             std::stringstream fname;
             fname << "bulk-" << (unsigned long long)m_handler << '-' << m_commands.block_start_time(0)
-                  << '-' << ++context.m_fcntr << ".log";
-            {
-                std::lock_guard lk{context.m_filesq_mutex};
-                context.m_to_files_q.emplace_back(std::make_pair(fname.str(), std::move(m_commands.get_cmds())));
-                context.m_f1.m_ready = false;
-                context.m_f2.m_ready = false;
-            }
+                  << '-' << ++m_files_cntr << ".log";
+            queues.push(std::make_pair(fname.str(), std::move(m_commands.get_cmds())));
+
             m_commands.clear_commands();
         }
     }
 
     handler_t& m_handler;
     CmdCollector& m_commands;
+    static std::size_t m_files_cntr;
 };
+
+std::size_t Process::m_files_cntr = 0;
 
 }
 
@@ -89,7 +84,7 @@ int disconnect(handler_t h)
 
     handlers.destroy(h);
 
-    context.wait();
+    queues.wait();
     return 1;
 }
 
@@ -115,7 +110,7 @@ void receive(handler_t h, const char* data, size_type data_size)
 
 void wait()
 {
-    context.wait();
+    queues.wait();
 }
 
 

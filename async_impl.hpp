@@ -37,10 +37,10 @@ private:
 };
 
 
-template<typename Q> class MThreadingContext
+template<typename Q> class QueueSyncContext
 {
 public:
-    template<typename F, typename O, typename... Args> MThreadingContext(Q& q, F&& work, O&& obj, Args&&... args):
+    template<typename F, typename O, typename... Args> QueueSyncContext(Q& q, F&& work, O&& obj, Args&&... args):
         m_queue{q},
         m_thread{std::thread{work, std::forward<O>(obj), std::ref(m_mutex), std::ref(m_cv),
                  std::ref(m_ready), std::forward<Args>(args)...}}
@@ -48,7 +48,7 @@ public:
         m_thread.detach();
     }
 
-    ~MThreadingContext()
+    ~QueueSyncContext()
     {
         wait();
     }
@@ -68,6 +68,8 @@ public:
         }
     }
 
+//    void push
+
 //private:
     Q& m_queue;
     std::atomic<bool> m_ready{true};
@@ -77,12 +79,16 @@ public:
 };
 
 
-class MThreading
+class Queues
 {
 public:
     void wait();
 
-//private:
+    void push(CmdCollector::cmds_t& cmds);
+
+    void push(std::pair<std::string, CmdCollector::cmds_t>&& element);
+
+private:
     void log_work(std::mutex& m, std::condition_variable& cv, std::atomic<bool>& ready);
     void fwork(std::mutex& m, std::condition_variable& cv, std::atomic<bool>& ready);
 
@@ -97,9 +103,9 @@ public:
 
     std::size_t m_fcntr{0};
 
-    MThreadingContext<log_queue_t> m_log{m_to_log_q, &MThreading::log_work, this};
-    MThreadingContext<fqueue_t> m_f1{m_to_files_q, &MThreading::fwork, this};
-    MThreadingContext<fqueue_t> m_f2{m_to_files_q, &MThreading::fwork, this};
+    QueueSyncContext<log_queue_t> m_log{m_to_log_q, &Queues::log_work, this};
+    QueueSyncContext<fqueue_t> m_f1{m_to_files_q, &Queues::fwork, this};
+    QueueSyncContext<fqueue_t> m_f2{m_to_files_q, &Queues::fwork, this};
 };
 
 }

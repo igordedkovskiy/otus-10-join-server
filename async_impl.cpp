@@ -36,7 +36,7 @@ size_type Handlers::size() const noexcept
     return m_handlers.size();
 }
 
-void MThreading::log_work(std::mutex& m, std::condition_variable& cv, std::atomic<bool>& ready)
+void Queues::log_work(std::mutex& m, std::condition_variable& cv, std::atomic<bool>& ready)
 {
     auto get = [this](CmdCollector::cmds_t& cmds)
     {
@@ -76,7 +76,7 @@ void MThreading::log_work(std::mutex& m, std::condition_variable& cv, std::atomi
     }
 }
 
-void MThreading::fwork(std::mutex& m, std::condition_variable& cv, std::atomic<bool> &ready)
+void Queues::fwork(std::mutex& m, std::condition_variable& cv, std::atomic<bool> &ready)
 {
     auto get = [this](std::string& fname, CmdCollector::cmds_t& cmds)
     {
@@ -118,7 +118,7 @@ void MThreading::fwork(std::mutex& m, std::condition_variable& cv, std::atomic<b
     }
 }
 
-void MThreading::wait()
+void Queues::wait()
 {
 //    auto empty = [](auto& q, auto& mutex)
 //    {
@@ -135,6 +135,21 @@ void MThreading::wait()
     m_f2.wait();
     m_f1.wait();
     m_log.wait();
+}
+
+void Queues::push(CmdCollector::cmds_t& cmds)
+{
+    std::lock_guard lk{m_logq_mutex};
+    m_to_log_q.push_back(cmds);
+    m_log.m_ready = false;
+}
+
+void Queues::push(std::pair<std::string, CmdCollector::cmds_t>&& element)
+{
+    std::lock_guard lk{m_filesq_mutex};
+    m_to_files_q.emplace_back(std::forward<decltype(element)>(element));
+    m_f1.m_ready = false;
+    m_f2.m_ready = false;
 }
 
 }
