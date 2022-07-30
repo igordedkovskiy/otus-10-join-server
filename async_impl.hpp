@@ -79,34 +79,43 @@ public:
 };
 
 
-class Queues
+class LogQueue
 {
 public:
     void wait();
 
     void push(CmdCollector::cmds_t& cmds);
 
+private:
+    void work(std::mutex& m, std::condition_variable& cv, std::atomic<bool>& ready);
+
+    using queue_t = std::deque<CmdCollector::cmds_t>;
+
+    queue_t m_to_log_q;
+    std::mutex m_logq_mutex;
+    QueueSyncContext<queue_t> m_log{m_to_log_q, &LogQueue::work, this};
+};
+
+class FilesQueue
+{
+public:
+    void wait();
+
     void push(std::pair<std::string, CmdCollector::cmds_t>&& element);
 
 private:
-    void log_work(std::mutex& m, std::condition_variable& cv, std::atomic<bool>& ready);
-    void fwork(std::mutex& m, std::condition_variable& cv, std::atomic<bool>& ready);
+    void work(std::mutex& m, std::condition_variable& cv, std::atomic<bool>& ready);
 
-    using log_queue_t = std::deque<CmdCollector::cmds_t>;
-    using fqueue_t = std::deque<std::pair<std::string, CmdCollector::cmds_t>>;
+    using queue_t = std::deque<std::pair<std::string, CmdCollector::cmds_t>>;
 
-    log_queue_t m_to_log_q;
-    fqueue_t m_to_files_q;
+    queue_t m_to_files_q;
 
-    std::mutex m_logq_mutex;
     std::mutex m_filesq_mutex;
 
-    std::size_t m_fcntr{0};
-
-    QueueSyncContext<log_queue_t> m_log{m_to_log_q, &Queues::log_work, this};
-    QueueSyncContext<fqueue_t> m_f1{m_to_files_q, &Queues::fwork, this};
-    QueueSyncContext<fqueue_t> m_f2{m_to_files_q, &Queues::fwork, this};
+    QueueSyncContext<queue_t> m_f1{m_to_files_q, &FilesQueue::work, this};
+    QueueSyncContext<queue_t> m_f2{m_to_files_q, &FilesQueue::work, this};
 };
+
 
 }
 

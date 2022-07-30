@@ -36,7 +36,7 @@ size_type Handlers::size() const noexcept
     return m_handlers.size();
 }
 
-void Queues::log_work(std::mutex& m, std::condition_variable& cv, std::atomic<bool>& ready)
+void LogQueue::work(std::mutex& m, std::condition_variable& cv, std::atomic<bool>& ready)
 {
     auto get = [this](CmdCollector::cmds_t& cmds)
     {
@@ -51,11 +51,11 @@ void Queues::log_work(std::mutex& m, std::condition_variable& cv, std::atomic<bo
     };
 
     auto& stream{std::cout};
+    CmdCollector::cmds_t cmds;
     while(true)
     {
         {
             std::scoped_lock lk{m};
-            CmdCollector::cmds_t cmds;
             while(get(cmds))
             {
                 stream << "bulk: ";
@@ -76,7 +76,7 @@ void Queues::log_work(std::mutex& m, std::condition_variable& cv, std::atomic<bo
     }
 }
 
-void Queues::fwork(std::mutex& m, std::condition_variable& cv, std::atomic<bool> &ready)
+void FilesQueue::work(std::mutex& m, std::condition_variable& cv, std::atomic<bool> &ready)
 {
     auto get = [this](std::string& fname, CmdCollector::cmds_t& cmds)
     {
@@ -92,11 +92,11 @@ void Queues::fwork(std::mutex& m, std::condition_variable& cv, std::atomic<bool>
     };
 
     std::string fname;
+    CmdCollector::cmds_t cmds;
     while(true)
     {
         {
             std::scoped_lock lk{m};
-            CmdCollector::cmds_t cmds;
             while(get(fname, cmds))
             {
                 auto stream{std::fstream{fname, std::fstream::out | std::fstream::app}};
@@ -118,7 +118,7 @@ void Queues::fwork(std::mutex& m, std::condition_variable& cv, std::atomic<bool>
     }
 }
 
-void Queues::wait()
+void LogQueue::wait()
 {
 //    auto empty = [](auto& q, auto& mutex)
 //    {
@@ -132,19 +132,23 @@ void Queues::wait()
 //        std::this_thread::sleep_for(1ms);
 //    }
 
-    m_f2.wait();
-    m_f1.wait();
     m_log.wait();
 }
 
-void Queues::push(CmdCollector::cmds_t& cmds)
+void FilesQueue::wait()
+{
+    m_f2.wait();
+    m_f1.wait();
+}
+
+void LogQueue::push(CmdCollector::cmds_t& cmds)
 {
     std::lock_guard lk{m_logq_mutex};
     m_to_log_q.push_back(cmds);
     m_log.m_ready = false;
 }
 
-void Queues::push(std::pair<std::string, CmdCollector::cmds_t>&& element)
+void FilesQueue::push(std::pair<std::string, CmdCollector::cmds_t>&& element)
 {
     std::lock_guard lk{m_filesq_mutex};
     m_to_files_q.emplace_back(std::forward<decltype(element)>(element));

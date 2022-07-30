@@ -23,7 +23,8 @@ namespace
 {
 
 Handlers handlers;
-Queues queues;
+LogQueue log_queue;
+FilesQueue files_queue;
 
 struct Process
 {
@@ -38,12 +39,12 @@ struct Process
         read.clear();
         if(m_commands.input_block_finished())
         {
-            queues.push(m_commands.get_cmds());
+            log_queue.push(m_commands.get_cmds());
 
             std::stringstream fname;
             fname << "bulk-" << (unsigned long long)m_handler << '-' << m_commands.block_start_time(0)
                   << '-' << ++m_files_cntr << ".log";
-            queues.push(std::make_pair(fname.str(), std::move(m_commands.get_cmds())));
+            files_queue.push(std::make_pair(fname.str(), std::move(m_commands.get_cmds())));
 
             m_commands.clear_commands();
         }
@@ -84,7 +85,7 @@ int disconnect(handler_t h)
 
     handlers.destroy(h);
 
-    queues.wait();
+    wait();
     return 1;
 }
 
@@ -110,7 +111,8 @@ void receive(handler_t h, const char* data, size_type data_size)
 
 void wait()
 {
-    queues.wait();
+    log_queue.wait();
+    files_queue.wait();
 }
 
 
