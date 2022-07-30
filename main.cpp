@@ -6,7 +6,6 @@
 #include <future>
 #include "async.h"
 
-
 void single_thread()
 {
     constexpr async::size_type bulk_size{3};
@@ -40,7 +39,7 @@ void single_thread()
         async::receive(h1, "cmd5\n", 5);
         async::disconnect(h1);
     }
-    async::wait();
+//    async::wait();
 }
 
 int main()

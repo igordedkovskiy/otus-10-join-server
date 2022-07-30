@@ -27,7 +27,6 @@ auto find_file(std::string masks)
     for(auto it{iterator(path)}; it != iterator(); ++it)
     {
         const auto path{fs::absolute(it->path())};
-        std::cout << path << std::endl;
         if(!fs::is_directory(path))
         {
             const auto fname{path.filename().string()};
@@ -54,11 +53,15 @@ bool check(std::stringstream ref, std::string masks)
         if(out.str() == ref.str())
         {
             std::cout << "File " << fn << " fits" << std::endl;
+            std::cout << "File: " << out.str() << std::endl;
+            std::cout << "Ref:  " << ref.str() << std::endl;
+            std::cout << std::endl;
             return true;
         }
         std::cout << "File " << fn << " doesn't fit" << std::endl;
         std::cout << "File: " << out.str() << std::endl;
         std::cout << "Ref:  " << ref.str() << std::endl;
+        std::cout << std::endl;
     }
     return false;
 }
@@ -84,9 +87,7 @@ TEST(TEST_ASYNC, async_sinlge_thread)
         async::disconnect(h2);
     }
 
-    async::wait();
-//    using namespace std::chrono_literals;
-//    std::this_thread::sleep_for(100ms);
+//    async::wait();
 
     // context 1
     std::cout << "masks:" << std::endl;

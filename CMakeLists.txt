@@ -19,6 +19,8 @@ add_executable(${PROJECT_NAME}
 add_library(async_lib SHARED
     "async.h"
     "async.cpp"
+    "async_impl.hpp"
+    "async_impl.cpp"
     "CmdCollector.hpp"
     "CmdCollector.cpp"
     "read_input.hpp"
