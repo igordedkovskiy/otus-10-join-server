@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.2)
 set(PATCH_VERSION "2" CACHE INTERNAL "Patch version")
 set(PROJECT_VERSION 0.0.${PATCH_VERSION})
 
-project(async VERSION ${PROJECT_VERSION})
+project(bulk-server VERSION ${PROJECT_VERSION})
 
 option(WITH_GTEST "Whether to build google test" ON)
 option(GIT_SUBMODULE "Check submodules during build" ON)
@@ -16,6 +16,7 @@ list(APPEND EXTRA_LINKS ${CMAKE_THREAD_LIBS_INIT})
 add_executable(${PROJECT_NAME}
     "main.cpp"
 )
+
 add_library(async_lib SHARED
     "async.h"
     "async.cpp"
