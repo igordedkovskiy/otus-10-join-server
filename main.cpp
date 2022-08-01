@@ -4,7 +4,12 @@
 #include <chrono>
 #include <thread>
 #include <future>
+
+#include <boost/asio.hpp>
+
 #include "async.h"
+
+using boost::asio::ip::tcp;
 
 void single_thread()
 {

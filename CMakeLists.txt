@@ -10,8 +10,10 @@ option(GIT_SUBMODULE "Check submodules during build" ON)
 
 configure_file(version.h.in version.h)
 
+find_package(Boost COMPONENTS system REQUIRED)
+
 find_package(Threads)
-list(APPEND EXTRA_LINKS ${CMAKE_THREAD_LIBS_INIT})
+#list(APPEND EXTRA_LINKS ${CMAKE_THREAD_LIBS_INIT})
 
 add_executable(${PROJECT_NAME}
     "main.cpp"
@@ -39,13 +41,20 @@ set_target_properties(async_lib PROPERTIES
     CXX_STANDARD_REQUIRED ON
 )
 
-target_include_directories(async_lib
-    PRIVATE "${CMAKE_BINARY_DIR}"
+target_include_directories(async_lib PRIVATE
+    ${CMAKE_BINARY_DIR}
+)
+
+target_include_directories(${PROJECT_NAME} PRIVATE
+    ${CMAKE_BINARY_DIR}
+    ${Boost_INCLUDE_DIR}
 )
 
 target_link_libraries(${PROJECT_NAME} PRIVATE
     async_lib
-    ${EXTRA_LINKS}
+    ${CMAKE_THREAD_LIBS_INIT}
+    ${Boost_LIBRARIES}
+#    ${EXTRA_LINKS}
 )
 
 if(WITH_GTEST)
@@ -117,7 +126,8 @@ if(WITH_GTEST)
         gtest
         gtest_main
         async_lib
-        ${EXTRA_LINKS}
+#        ${EXTRA_LINKS}
+        ${CMAKE_THREAD_LIBS_INIT}
     )
 endif()
 
@@ -143,6 +153,16 @@ elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     if(WITH_GTEST)
         target_compile_options(test_async PRIVATE
             "-Wall" "-Wextra" "-Werror" "-pedantic" "-fcoroutines"
+        )
+    endif()
+
+    if(WIN32)
+        target_link_libraries(${PROJECT_NAME} PRIVATE
+#            async_lib
+#            ${CMAKE_THREAD_LIBS_INIT}
+        #    ${EXTRA_LINKS}
+            wsock32
+#            ws2_32
         )
     endif()
 endif()
