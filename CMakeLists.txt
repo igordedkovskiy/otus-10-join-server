@@ -12,7 +12,7 @@ configure_file(version.h.in version.h)
 
 find_package(Boost COMPONENTS system REQUIRED)
 
-find_package(Threads)
+find_package(Threads REQUIRED)
 #list(APPEND EXTRA_LINKS ${CMAKE_THREAD_LIBS_INIT})
 
 add_executable(${PROJECT_NAME}
@@ -162,7 +162,7 @@ elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
 #            ${CMAKE_THREAD_LIBS_INIT}
         #    ${EXTRA_LINKS}
             wsock32
-#            ws2_32
+            ws2_32
         )
     endif()
 endif()

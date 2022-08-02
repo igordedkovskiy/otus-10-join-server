@@ -1,7 +1,6 @@
 #.gitignore
 
 CMakeLists.txt.user
-CMakeLists.txt
 CMakeCache.txt
 CMakeFiles
 CMakeScripts
@@ -18,5 +17,6 @@ input*.txt
 *.md
 
 debug
+Debug
 
 [Bb][Uu][Ii][Ll][Dd]/
