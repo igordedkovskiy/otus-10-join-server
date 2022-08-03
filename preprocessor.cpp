@@ -12,12 +12,13 @@ Preprocessor::where_to_cut_t Preprocessor::run(handler_t h, const char *data, si
     auto el{m_map.find(h)};
     if(el == std::end(m_map))
     {
-        auto [el, res]{m_map.insert(std::make_pair(h, helper{}))};
-        if(!res)
+        auto e{m_map.insert(std::make_pair(h, helper{}))};
+        if(!e.second)
             throw;
+        el = e.first;
     }
 
-    auto properties{el.second};
+    auto properties{el->second};
     auto& [braces_cntr, curent_type]{properties};
 
     where_to_cut_t result;
@@ -45,11 +46,9 @@ Preprocessor::where_to_cut_t Preprocessor::run(handler_t h, const char *data, si
     }
 
     if(update_state)
-        el.second = properties;
+        el->second = properties;
     if(result.empty())
-    {
         result.emplace_back(std::make_pair(data_size, curent_type));
-    }
     return result;
 }
 

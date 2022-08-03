@@ -34,7 +34,5 @@ private:
     std::unordered_map<handler_t, helper> m_map;
 };
 
-void preprocess(handler_t h, const char* data, size_type data_size, );
-
 }
 
