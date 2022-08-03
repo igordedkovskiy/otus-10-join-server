@@ -17,6 +17,8 @@ find_package(Threads REQUIRED)
 
 add_executable(${PROJECT_NAME}
     "main.cpp"
+    "preprocessor.hpp"
+    "preprocessor.cpp"
 )
 
 add_library(async_lib SHARED
