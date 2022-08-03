@@ -8,6 +8,7 @@
 #include <boost/asio.hpp>
 
 #include "async.h"
+#include "preprocessor.hpp"
 
 using boost::asio::ip::tcp;
 
@@ -15,14 +16,14 @@ void single_thread()
 {
     constexpr async::size_type bulk_size{3};
 
-    const auto h1{async::connect(bulk_size)};
+    const auto h1{async::connect_with(bulk_size)};
     async::receive(h1, "cmd1\ncmd2\ncmd3\ncmd4\ncmd5\n", 25);
     async::disconnect(h1);
 
     {
         std::cout << std::endl;
-        const auto h1{async::connect(bulk_size)};
-        const auto h2{async::connect(bulk_size)};
+        const auto h1{async::connect_with(bulk_size)};
+        const auto h2{async::connect_with(bulk_size)};
         async::receive(h2, "cmd1\n", 5);
         async::receive(h1, "cmd1\ncmd2\n", 10);
         async::receive(h2, "cmd2\n{\ncmd3\ncmd4\n}\n", 19);
@@ -36,7 +37,7 @@ void single_thread()
     }
     {
         std::cout << std::endl;
-        const auto h1{async::connect(bulk_size)};
+        const auto h1{async::connect_with(bulk_size)};
         async::receive(h1, "cmd1\n", 5);
         async::receive(h1, "cmd2\n", 5);
         async::receive(h1, "cmd3\n", 5);

@@ -17,7 +17,8 @@
 
 #include "async_impl.hpp"
 
-using namespace async;
+namespace async
+{
 
 namespace
 {
@@ -63,7 +64,7 @@ std::size_t Process::m_files_cntr = 0;
 extern "C"
 {
 
-handler_t connect(size_type bulk_size)
+handler_t connect_with(size_type bulk_size)
 {
     return handlers.create(std::make_unique<CmdCollector>(CmdCollector{bulk_size}));
 }
@@ -115,7 +116,6 @@ void wait()
     files_queue.wait();
 }
 
-
-
 }
 
+}

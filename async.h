@@ -2,19 +2,22 @@
 
 #include <cstdint>
 
-extern "C"
-{
-
 namespace async
 {
 
 using size_type = std::size_t;
 using handler_t = void*;
 
+extern "C"
+{
+
 /// \brief   Create a new context
 /// \arg \a  bulk_size is a size of a block of commands
 /// \returns a handler to context
-handler_t connect(size_type bulk_size);
+/// \note    Why 'connect_with', why not just 'connect'?
+///          There's 'int connect()' function in winsock2.h, thus two functions
+///          differ only in their return type.
+handler_t connect_with(size_type bulk_size);
 
 int disconnect(handler_t h);
 

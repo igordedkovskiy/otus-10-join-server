@@ -70,8 +70,8 @@ bool check(std::stringstream ref, std::string masks)
 
 TEST(TEST_ASYNC, async_sinlge_thread)
 {
-    const auto h1{async::connect(bulk_size)};
-    const auto h2{async::connect(bulk_size)};
+    const auto h1{async::connect_with(bulk_size)};
+    const auto h2{async::connect_with(bulk_size)};
 
     {
         async::receive(h2, "cmd1\n", 5);
