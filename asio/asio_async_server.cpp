@@ -38,9 +38,20 @@ class session: public std::enable_shared_from_this<session<F>>
 {
 public:
     session(tcp::socket socket, F& f):
-        m_f{f},
-        m_socket(std::move(socket))
+        m_socket(std::move(socket)),
+        m_f{f}
     {}
+
+    ~session()
+    {
+        std::cout << __PRETTY_FUNCTION__ << std::endl;
+        if(m_socket.is_open())
+        {
+//            std::cout << "close socket" << std::endl;
+            m_socket.shutdown(boost::asio::socket_base::shutdown_both);
+            m_socket.close();
+        }
+    }
 
     void start()
     {
@@ -48,38 +59,29 @@ public:
     }
 
 private:
-    F& m_f;
     void do_read()
     {
         auto self(this->shared_from_this());
-//        auto enqueue = [](char* data, std::size_t length, tcp::socket& socket,
-//                std::mutex& m, std::condition_variable& cv, bool& received)
-//        {
-//            {
-//                std::scoped_lock lk{m};
-//                messages_queue.push_back({data, length, socket.remote_endpoint()});
-//                received = true;
-//            }
-//            cv.notify_one();
-//        };
         auto process = [this, self](boost::system::error_code ec, std::size_t length)
         {
             if(!ec)
             {
                 m_f(m_data, length, m_socket);
-                //{
-                //    std::scoped_lock lk{cv_m};
-                //    messages_queue.push_back({m_data, length, m_socket.remote_endpoint()});
-                //    received = true;
-                //}
-                //cv.notify_one();
-
-                //const auto& el{messages_queue.front()};
-                //std::cout << "endpoint info [ip:port]: " << el.m_endpoint << std::endl;
-                //std::cout << "receive1 " << el.m_data.size() << "=" << el.m_data << std::endl;
-                //std::cout << "receive2 " << length << "=" << std::string{m_data, length} << std::endl;
-                //std::cout << "receive3 " << length << "=" << std::string{m_data, length} << std::endl;
                 do_write(length);
+            }
+            else
+            {
+                if(ec == boost::asio::error::eof)
+                    std::cout << "eof!" << std::endl;
+                else if(ec == boost::asio::error::connection_reset)
+                    std::cout << "connection reset!" << std::endl;
+                if(m_socket.is_open())
+                {
+                    std::cout << __PRETTY_FUNCTION__ << std::endl;
+                    std::cout << "close socket" << std::endl;
+                    m_socket.shutdown(boost::asio::socket_base::shutdown_both);
+                    m_socket.close();
+                }
             }
         };
         m_socket.async_read_some(boost::asio::buffer(m_data, data_max_length), process);
@@ -96,113 +98,10 @@ private:
         boost::asio::async_write(m_socket, boost::asio::buffer(m_data, length), process);
     }
     
-//with coroutines
-//    template <typename SyncReadStream, typename DynamicBuffer>
-//    auto async_read_some(SyncReadStream &s, DynamicBuffer &&buffers) {
-//        struct Awaiter {
-//            SyncReadStream &s;
-//            DynamicBuffer buffers;
-//
-//            std::error_code ec;
-//            size_t sz;
-//
-//            bool await_ready() { return false; }
-//            void await_suspend(std::experimental::coroutine_handle<> coro) {
-//                s.async_read_some(std::move(buffers),
-//                                  [this, coro](auto ec, auto sz) mutable {
-//                                      this->ec = ec;
-//                                      this->sz = sz;
-//                                      coro.resume();
-//                                  });
-//            }
-//            auto await_resume() { return std::make_pair(ec, sz); }
-//        };
-//        return Awaiter{s, std::forward<DynamicBuffer>(buffers)};
-//    }
-//
-//    void do_read() {
-//        auto self(shared_from_this());
-//        const auto[ec, length] = co_await async_read_some(
-//            socket_, boost::asio::buffer(data_, max_length));
-//
-//        if (!ec) {
-//            do_write(length);
-//        }
-//    }
-//
-//    //    template <typename SyncReadStream, typename DynamicBuffer>
-//    auto async_write_some(SyncReadStream &s, DynamicBuffer &&buffers) {
-//        struct Awaiter {
-//            SyncReadStream &s;
-//            DynamicBuffer buffers;
-//
-//            std::error_code ec;
-//            size_t sz;
-//
-//            bool await_ready() { return false; }
-//            auto await_resume() { return std::make_pair(ec, sz); }
-//            void await_suspend(std::experimental::coroutine_handle<> coro) {
-//                boost::asio::async_write(
-//                    s, std::move(buffers), [this, coro](auto ec, auto sz) mutable {
-//                        this->ec = ec;
-//                        this->sz = sz;
-//                        coro.resume();
-//                    });
-//            }
-//        };
-//        return Awaiter{s, std::forward<DynamicBuffer>(buffers)};
-//    }
-//
-//    void do_write() {
-//        auto self(shared_from_this());
-//        const auto[ec, length] = co_await async_write_some(
-//            socket_, boost::asio::buffer(data_, max_length));
-//
-//        if (!ec) {
-//            do_read(length);
-//        }
-//    }
-//
-//        auto do_write(std::size_t length) {
-//            auto self(shared_from_this());
-//            struct Awaiter {
-//                std::shared_ptr<session> ssn;
-//                std::size_t length;
-//                std::error_code ec;
-//
-//                bool await_ready() { return false; }
-//                auto await_resume() { return ec; }
-//                void await_suspend(std::experimental::coroutine_handle<> coro) {
-//                    const auto[ec, sz] = co_await async_write(
-//                        ssn->socket_, boost::asio::buffer(ssn->data_, length));
-//                    this->ec = ec;
-//                    coro.resume();
-//                }
-//            };
-//            return Awaiter{self, length};
-//        }
-//
-//    void do_read() {
-//        auto self(shared_from_this());
-//        while (true) {
-//            const auto[ec, sz] = co_await async_read_some(
-//                socket_, boost::asio::buffer(data_, max_length));
-//            if (!ec) {
-//                auto ec = co_await do_write(sz);
-//                if (ec) {
-//                    std::cout << "Error writing to socket: " << ec << std::endl;
-//                    break;
-//                }
-//            } else {
-//                std::cout << "Error reading from socket: " << ec << std::endl;
-//                break;
-//            }
-//        }
-//    }
-
     tcp::socket m_socket;
     static constexpr std::size_t data_max_length{1024};
     char m_data[data_max_length];
+    F& m_f;
 };
 
 template<typename F>
@@ -274,7 +173,6 @@ int main(int argc, char* argv[])
             while(!received)
             {
                 std::unique_lock lk{cv_m};
-                //while(!received)
                 cv.wait(lk, [&received]{ return received; });
             }
             const auto& el{messages_queue.front()};
