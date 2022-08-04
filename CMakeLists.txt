@@ -19,6 +19,8 @@ add_executable(${PROJECT_NAME}
     "main.cpp"
     "preprocessor.hpp"
     "preprocessor.cpp"
+    "asio_async_server.hpp"
+    "asio_async_server.cpp"
 )
 
 add_library(async_lib SHARED

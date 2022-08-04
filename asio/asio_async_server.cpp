@@ -33,16 +33,12 @@ struct rc_data
     const endpoint_t m_endpoint;
 };
 
-using messages_queue_t = std::deque<rc_data>;
-messages_queue_t messages_queue;
-bool received{false};
-std::condition_variable cv;
-std::mutex cv_m;
-
-class session: public std::enable_shared_from_this<session>
+template<typename F>
+class session: public std::enable_shared_from_this<session<F>>
 {
 public:
-    session(tcp::socket socket):
+    session(tcp::socket socket, F& f):
+        m_f{f},
         m_socket(std::move(socket))
     {}
 
@@ -52,19 +48,31 @@ public:
     }
 
 private:
+    F& m_f;
     void do_read()
     {
-        auto self(shared_from_this());
+        auto self(this->shared_from_this());
+//        auto enqueue = [](char* data, std::size_t length, tcp::socket& socket,
+//                std::mutex& m, std::condition_variable& cv, bool& received)
+//        {
+//            {
+//                std::scoped_lock lk{m};
+//                messages_queue.push_back({data, length, socket.remote_endpoint()});
+//                received = true;
+//            }
+//            cv.notify_one();
+//        };
         auto process = [this, self](boost::system::error_code ec, std::size_t length)
         {
             if(!ec)
             {
-                {
-                    std::scoped_lock lk{cv_m};
-                    messages_queue.push_back({m_data, length, m_socket.remote_endpoint()});
-                    received = true;
-                }
-                cv.notify_one();
+                m_f(m_data, length, m_socket);
+                //{
+                //    std::scoped_lock lk{cv_m};
+                //    messages_queue.push_back({m_data, length, m_socket.remote_endpoint()});
+                //    received = true;
+                //}
+                //cv.notify_one();
 
                 //const auto& el{messages_queue.front()};
                 //std::cout << "endpoint info [ip:port]: " << el.m_endpoint << std::endl;
@@ -79,7 +87,7 @@ private:
     
     void do_write(std::size_t length)
     {
-        auto self(shared_from_this());
+        auto self(this->shared_from_this());
         auto process = [this, self](boost::system::error_code ec, std::size_t /*length*/)
         {
             if(!ec)
@@ -197,10 +205,12 @@ private:
     char m_data[data_max_length];
 };
 
+template<typename F>
 class server
 {
 public:
-    server(boost::asio::io_context& io_context, short port):
+    server(boost::asio::io_context& io_context, short port, F& f):
+        m_f{f},
         m_acceptor(io_context, tcp::endpoint(tcp::v4(), port))
     {
         do_accept();
@@ -212,12 +222,13 @@ private:
         auto process = [this](boost::system::error_code ec, tcp::socket socket)
         {
             if(!ec)
-                std::make_shared<session>(std::move(socket))->start();
+                std::make_shared<session<F>>(std::move(socket), m_f)->start();
             do_accept();
         };
         m_acceptor.async_accept(process);
     }
 
+    F& m_f;
     tcp::acceptor m_acceptor;
 };
 
@@ -232,10 +243,26 @@ int main(int argc, char* argv[])
             return 1;
         }
 
-        auto server_main = [](char* argv[])
+        using messages_queue_t = std::deque<rc_data>;
+        messages_queue_t messages_queue;
+        bool received{false};
+        std::condition_variable cv;
+        std::mutex cv_m;
+
+        auto enqueue = [&messages_queue, &received, &cv, &cv_m](char* data, std::size_t length, tcp::socket& socket)
+        {
+            {
+                std::scoped_lock lk{cv_m};
+                messages_queue.push_back({data, length, socket.remote_endpoint()});
+                received = true;
+            }
+            cv.notify_one();
+        };
+
+        auto server_main = [&enqueue](char* argv[])
         {
             boost::asio::io_context io_context;
-            server server(io_context, std::atoi(argv[1]));
+            server server(io_context, std::atoi(argv[1]), enqueue);
             io_context.run();
         };
 
@@ -248,7 +275,7 @@ int main(int argc, char* argv[])
             {
                 std::unique_lock lk{cv_m};
                 //while(!received)
-                cv.wait(lk, []{ return received; });
+                cv.wait(lk, [&received]{ return received; });
             }
             const auto& el{messages_queue.front()};
             std::cout << "\nendpoint: " << el.m_endpoint << std::endl;
