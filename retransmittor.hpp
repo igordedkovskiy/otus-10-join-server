@@ -10,8 +10,7 @@
 #include <boost/asio.hpp>
 #include <boost/bimap.hpp>
 #include <boost/bimap/unordered_set_of.hpp>
-#include <boost/container/allocator.hpp>
-//#include <boost/core/allocator_access.hpp>
+#include <boost/pool/pool_alloc.hpp>
 
 #include "async.h"
 #include "asio_async_server.hpp"
@@ -74,19 +73,14 @@ private:
     Queue m_storage;
     DataPreprocessor m_data_preprocessor;
 
-    struct endpoint {}; // just a stub
-    struct handler {}; // just a stub
-    boost::bimap<
-            boost::bimaps::unordered_set_of<
-                boost::bimaps::tagged<std::string, endpoint>
-            >,
-            boost::bimaps::tagged<
-                async::handler_t,
-                handler
-            >
-//            ,boost::container::allocator<std::pair<std::string, async::handler_t>>
-            //std::allocator<std::pair<std::string, async::handler_t>>
-        > m_endpoints_handlers;
+    /// \note The allocator is specified because gcc-11 fails to compile the code
+    ///       with default allocator and c++20.
+    ///       In gcc-12 the problem is fixed.
+    boost::bimap<boost::bimaps::unordered_set_of<std::string>
+                ,async::handler_t
+                ,boost::fast_pool_allocator<std::pair<std::string, async::handler_t>>
+                //,boost::container::allocator<std::pair<std::string, async::handler_t>>
+                > m_endpoints_handlers;
 };
 
 }
