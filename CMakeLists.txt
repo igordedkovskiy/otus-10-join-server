@@ -162,9 +162,6 @@ elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
 
     if(WIN32)
         target_link_libraries(${PROJECT_NAME} PRIVATE
-#            async_lib
-#            ${CMAKE_THREAD_LIBS_INIT}
-        #    ${EXTRA_LINKS}
             wsock32
             ws2_32
         )
