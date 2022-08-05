@@ -11,7 +11,7 @@
 #include <boost/bimap.hpp>
 #include <boost/bimap/unordered_set_of.hpp>
 #include <boost/container/allocator.hpp>
-#include <boost/core/allocator_access.hpp>
+//#include <boost/core/allocator_access.hpp>
 
 #include "async.h"
 #include "asio_async_server.hpp"
