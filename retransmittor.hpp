@@ -11,6 +11,7 @@
 #include <boost/bimap.hpp>
 #include <boost/bimap/unordered_set_of.hpp>
 #include <boost/container/allocator.hpp>
+#include <boost/core/allocator_access.hpp>
 
 #include "async.h"
 #include "asio_async_server.hpp"
@@ -83,7 +84,7 @@ private:
                 async::handler_t,
                 handler
             >
-            //,boost::container::allocator<std::pair<std::string, async::handler_t>>
+//            ,boost::container::allocator<std::pair<std::string, async::handler_t>>
             //std::allocator<std::pair<std::string, async::handler_t>>
         > m_endpoints_handlers;
 };
