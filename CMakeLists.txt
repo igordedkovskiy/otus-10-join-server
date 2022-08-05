@@ -17,10 +17,10 @@ find_package(Threads REQUIRED)
 
 add_executable(${PROJECT_NAME}
     "main.cpp"
-    "preprocessor.hpp"
-    "preprocessor.cpp"
     "asio_async_server.hpp"
     "asio_async_server.cpp"
+    "retransmittor.hpp"
+    "retransmittor.cpp"
 )
 
 add_library(async_lib SHARED

@@ -6,6 +6,7 @@
 #include <boost/asio.hpp>
 
 #include "asio_async_server.hpp"
+#include "retransmittor.hpp"
 
 using boost::asio::ip::tcp;
 

@@ -42,7 +42,7 @@ struct Process
         {
             if(m_commands.get_cmds().empty())
             {
-                std::cout << "bulk is emtpy!" << std::endl;
+                //std::cout << "bulk is emtpy!" << std::endl;
                 m_commands.clear_commands();
                 return;
             }
@@ -85,7 +85,7 @@ int disconnect(handler_t h)
     if(el == handlers.end())
         return 0;
 
-    std::cout << __PRETTY_FUNCTION__ << std::endl;
+    //std::cout << __PRETTY_FUNCTION__ << std::endl;
     auto& commands{el->second};
     if(!commands->get_cmds().empty())
     {
