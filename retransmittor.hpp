@@ -82,9 +82,9 @@ private:
             boost::bimaps::tagged<
                 async::handler_t,
                 handler
-            >,
-            //boost::container::allocator<std::pair<std::string, async::handler_t>>
-            std::allocator<std::pair<std::string, async::handler_t>>
+            >
+            //,boost::container::allocator<std::pair<std::string, async::handler_t>>
+            //std::allocator<std::pair<std::string, async::handler_t>>
         > m_endpoints_handlers;
 };
 
