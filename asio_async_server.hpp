@@ -16,11 +16,18 @@
 #include <deque>
 #include <type_traits>
 #include <boost/asio.hpp>
+#include <boost/bimap.hpp>
+#include <boost/bimap/unordered_set_of.hpp>
+
+#include "async.h"
+#include "preprocessor.hpp"
 
 namespace async_server
 {
 
 using boost::asio::ip::tcp;
+
+using size_type = async::size_type;
 
 using endpoint_t = boost::asio::ip::basic_endpoint<boost::asio::ip::tcp>;
 struct rc_data
@@ -100,58 +107,43 @@ private:
     std::mutex m_mutex;
 };
 
-class Queues
+
+class Retransmittor
 {
 public:
-    template<typename T> void push(T&& d)
-    {
-        if constexpr(std::is_same_v<T, rc_data>)
-            m_messages.push(std::forward<decltype(d)>(d));
-        else if constexpr(std::is_same_v<T, rc_status>)
-            m_service.push(std::forward<decltype(d)>(d));
-    }
+    Retransmittor() = default;
+    Retransmittor(size_type bulk_size);
 
-    template<typename T> T pop()
-    {
-        if constexpr(std::is_same_v<T, rc_data>)
-            return m_messages.pop();
-        else if constexpr(std::is_same_v<T, rc_status>)
-            return m_service.pop();
-    }
+    void on_read(rc_data&& data);
+    void on_socket_close(std::string address);
+//    void on_write(); ???
 
-    template<typename T> T front()
-    {
-        if constexpr(std::is_same_v<T, rc_data>)
-            return m_messages.front();
-        else if constexpr(std::is_same_v<T, rc_status>)
-            return m_service.front();
-    }
-
-    void wait()
-    {
-        m_messages.wait();
-    }
-
-    template<typename T> bool empty()
-    {
-        if constexpr(std::is_same_v<T, rc_data>)
-            return m_messages.empty();
-        else if constexpr(std::is_same_v<T, rc_status>)
-            return m_service.empty();
-    }
-
+    void run();
 private:
-    Queue<rc_data> m_messages;
-    Queue<rc_status> m_service;
-    bool m_received{false};
-    std::condition_variable m_cv;
-    std::mutex m_mutex;
+    size_type m_bulk_size{3};
+
+    Queue<rc_data> m_storage;
+    preprocess::Preprocessor m_prep;
+
+    struct endpoint {}; // just a stub
+    struct handler {}; // just a stub
+    boost::bimap<
+            boost::bimaps::unordered_set_of<
+                boost::bimaps::tagged<std::string, endpoint>
+            >,
+            boost::bimaps::tagged<
+                async::handler_t,
+                handler
+            >
+        > m_endpoints_handlers;
 };
+
+
 
 class session: public std::enable_shared_from_this<session>
 {
 public:
-    session(tcp::socket socket, Queues& data);
+    session(tcp::socket socket, Retransmittor& r);
     ~session();
 
     void start();
@@ -166,19 +158,19 @@ private:
     tcp::socket m_socket;
     static constexpr std::size_t data_max_length{1024};
     char m_data[data_max_length];
-    Queues& m_storage;
+    Retransmittor& m_retransmittor;
 };
 
 class server
 {
 public:
-    server(boost::asio::io_context& io_context, short port, Queues& data);
+    server(boost::asio::io_context& io_context, short port, Retransmittor& r);
 
 private:
     void do_accept();
 
     tcp::acceptor m_acceptor;
-    Queues& m_storage;
+    Retransmittor& m_retransmittor;
 };
 
 }
