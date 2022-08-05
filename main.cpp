@@ -33,12 +33,12 @@ int main(int argc, char* argv[])
             return 1;
         }
 
-        async_server::Queue queue;
+        async_server::Queues data;
 
-        auto server_main = [&queue](char* argv[])
+        auto server_main = [&data](char* argv[])
         {
             boost::asio::io_context io_context;
-            async_server::server server(io_context, std::atoi(argv[1]), queue);
+            async_server::server server(io_context, std::atoi(argv[1]), data);
             io_context.run();
         };
 
@@ -66,14 +66,13 @@ int main(int argc, char* argv[])
         const auto handler_for_static{async::connect_with(bulk_size)};
         while(true)
         {
-            queue.wait();
-            while(!queue.empty())
+            data.wait();
+            while(!data.empty<async_server::rc_data>())
             {
-                const auto pack{queue.pop()};
+                const auto pack{data.pop<async_server::rc_data>()};
                 std::cout << "\nendpoint: " << pack.m_endpoint << std::endl;
-                std::cout << "\nendpoint: " << pack.m_endpoint.address() << ':' << pack.m_endpoint.port() << std::endl;
                 std::cout << "data received: " << pack.m_data << std::endl;
-                const auto addr{pack.m_endpoint.address().to_string() + std::to_string(pack.m_endpoint.port())};
+                const auto addr{std::move(pack.m_endpoint)};
                 auto el{endpoints_handlers.by<endpoint>().find(addr)};
                 async::handler_t h{nullptr};
                 if(el == endpoints_handlers.left.end())
@@ -85,14 +84,29 @@ int main(int argc, char* argv[])
                     h = el->second;
 
                 auto where = prep.run(h, pack.m_data.c_str(), pack.m_data.size()-1);
-                std::size_t prev_pos{0};
-                for(auto [pos, type]:where)
+                std::size_t start{0};
+                for(auto [end, type]:where)
                 {
                     if(type == preprocess::Preprocessor::BlockType::STATIC)
-                        async::receive(handler_for_static, pack.m_data.c_str(), pos - prev_pos);
+                        async::receive(handler_for_static, pack.m_data.c_str() + start, end - start);
                     else
-                        async::receive(h, pack.m_data.c_str(), pos - prev_pos);
-                    prev_pos = pos;
+                        async::receive(h, pack.m_data.c_str() + start, end - start);
+                    start = end;
+                }
+            }
+
+            while(!data.empty<async_server::rc_status>())
+            {
+                const auto pack{data.pop<async_server::rc_status>()};
+                std::cout << "\nendpoint " << pack.m_endpoint;
+                if(pack.m_socket_is == async_server::rc_status::SocketStatus::CLOSED)
+                    std::cout << " is closed" << std::endl;
+
+                auto el{endpoints_handlers.by<endpoint>().find(pack.m_endpoint)};
+                if(el != endpoints_handlers.left.end())
+                {
+                    async::disconnect(el->second);
+                    el = endpoints_handlers.left.erase(el);
                 }
             }
         }

@@ -14,6 +14,7 @@
 #include <iostream>
 #include <memory>
 #include <deque>
+#include <type_traits>
 #include <boost/asio.hpp>
 
 namespace async_server
@@ -25,29 +26,123 @@ using endpoint_t = boost::asio::ip::basic_endpoint<boost::asio::ip::tcp>;
 struct rc_data
 {
     rc_data() = default;
-    rc_data(const char* data, std::size_t size, endpoint_t&& epoint);
+    rc_data(const char* data, std::size_t size, const endpoint_t& epoint);
 
     const std::string m_data;
-    const endpoint_t m_endpoint;
+    const std::string m_endpoint;
 };
 
+struct rc_status
+{
+    enum class SocketStatus: std::uint8_t { UNDEFINED, OPENED, CLOSED };
 
+    rc_status() = default;
+    rc_status(const endpoint_t& epoint, SocketStatus st);
+
+    const std::string m_endpoint;
+    const SocketStatus m_socket_is{SocketStatus::UNDEFINED};
+};
+
+template<typename T>
 class Queue
 {
 public:
-    void push(rc_data&& d);
+    void push(T&& d)
+    {
+        {
+            std::scoped_lock lk{m_mutex};
+            m_queue.push_back(std::forward<decltype(d)>(d));
+            m_received = true;
+        }
+        m_cv.notify_one();
+    }
 
-    rc_data pop();
+    T pop()
+    {
+        std::scoped_lock lk{m_mutex};
+        if(m_queue.empty())
+            return T{};
+        T data{m_queue.front()};
+        m_queue.pop_front();
+        return data;
+    }
 
-    rc_data front();
+    T front()
+    {
+        std::scoped_lock lk{m_mutex};
+        if(m_queue.empty())
+            return T{};
+        T data{m_queue.front()};
+        return data;
+    }
 
-    void wait();
+    void wait()
+    {
+        while(!m_received)
+        {
+            std::unique_lock lk{m_mutex};
+            m_cv.wait(lk, [this]{ return m_received; });
+        }
+        m_received = false;
+    }
 
-    bool empty();
+    bool empty()
+    {
+        std::unique_lock lk{m_mutex};
+        return m_queue.empty();
+    }
 
 private:
-    using messages_queue_t = std::deque<rc_data>;
-    messages_queue_t m_messages_queue;
+    using messages_queue_t = std::deque<T>;
+    messages_queue_t m_queue;
+    bool m_received{false};
+    std::condition_variable m_cv;
+    std::mutex m_mutex;
+};
+
+class Queues
+{
+public:
+    template<typename T> void push(T&& d)
+    {
+        if constexpr(std::is_same_v<T, rc_data>)
+            m_messages.push(std::forward<decltype(d)>(d));
+        else if constexpr(std::is_same_v<T, rc_status>)
+            m_service.push(std::forward<decltype(d)>(d));
+    }
+
+    template<typename T> T pop()
+    {
+        if constexpr(std::is_same_v<T, rc_data>)
+            return m_messages.pop();
+        else if constexpr(std::is_same_v<T, rc_status>)
+            return m_service.pop();
+    }
+
+    template<typename T> T front()
+    {
+        if constexpr(std::is_same_v<T, rc_data>)
+            return m_messages.front();
+        else if constexpr(std::is_same_v<T, rc_status>)
+            return m_service.front();
+    }
+
+    void wait()
+    {
+        m_messages.wait();
+    }
+
+    template<typename T> bool empty()
+    {
+        if constexpr(std::is_same_v<T, rc_data>)
+            return m_messages.empty();
+        else if constexpr(std::is_same_v<T, rc_status>)
+            return m_service.empty();
+    }
+
+private:
+    Queue<rc_data> m_messages;
+    Queue<rc_status> m_service;
     bool m_received{false};
     std::condition_variable m_cv;
     std::mutex m_mutex;
@@ -56,7 +151,8 @@ private:
 class session: public std::enable_shared_from_this<session>
 {
 public:
-    session(tcp::socket socket, Queue& queue);
+    session(tcp::socket socket, Queues& data);
+    ~session();
 
     void start();
 
@@ -65,22 +161,24 @@ private:
 
     void do_write(std::size_t length);
 
+    void close();
+
     tcp::socket m_socket;
     static constexpr std::size_t data_max_length{1024};
     char m_data[data_max_length];
-    Queue& m_queue;
+    Queues& m_storage;
 };
 
 class server
 {
 public:
-    server(boost::asio::io_context& io_context, short port, Queue& queue);
+    server(boost::asio::io_context& io_context, short port, Queues& data);
 
 private:
     void do_accept();
 
     tcp::acceptor m_acceptor;
-    Queue& m_queue;
+    Queues& m_storage;
 };
 
 }

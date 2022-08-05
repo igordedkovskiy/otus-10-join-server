@@ -24,13 +24,16 @@ template<typename T> struct TD;
 using endpoint_t = boost::asio::ip::basic_endpoint<boost::asio::ip::tcp>;
 struct rc_data
 {
-    rc_data(const char* data, std::size_t size, endpoint_t&& epoint):
+    enum class SocketStatus: std::uint8_t { UNDEFINED, OPENED, CLOSED };
+
+    rc_data(const char* data, std::size_t size, const endpoint_t& epoint):
         m_data{data, size},
-        m_endpoint{std::forward<decltype(epoint)>(epoint)}
+        m_endpoint{epoint.address().to_string() + std::to_string(epoint.port())}
     {}
 
     const std::string m_data;
-    const endpoint_t m_endpoint;
+    const std::string m_endpoint;
+    const SocketStatus m_socket_is{SocketStatus::UNDEFINED};
 };
 
 template<typename F>

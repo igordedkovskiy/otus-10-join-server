@@ -40,6 +40,12 @@ struct Process
         read.clear();
         if(m_commands.input_block_finished())
         {
+            if(m_commands.get_cmds().empty())
+            {
+                std::cout << "bulk is emtpy!" << std::endl;
+                m_commands.clear_commands();
+                return;
+            }
             log_queue.push(m_commands.get_cmds());
 
             std::stringstream fname;
@@ -79,10 +85,14 @@ int disconnect(handler_t h)
     if(el == handlers.end())
         return 0;
 
+    std::cout << __PRETTY_FUNCTION__ << std::endl;
     auto& commands{el->second};
-    commands->finish_block();
-    Process process{h, *commands.get()};
-    process("{");
+    if(!commands->get_cmds().empty())
+    {
+        commands->finish_block();
+        Process process{h, *commands.get()};
+        process("{");
+    }
 
     handlers.destroy(h);
 
