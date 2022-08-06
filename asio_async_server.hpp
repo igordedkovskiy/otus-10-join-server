@@ -28,9 +28,10 @@ struct rc_data
 {
     rc_data() = default;
     rc_data(const char* data, std::size_t size, const endpoint_t& epoint);
+    rc_data(const char* data, std::size_t size, size_type epoint);
 
     const std::string m_data;
-    const std::string m_endpoint;
+    const size_type m_endpoint{0};
 };
 
 class Retransmittor;
@@ -53,6 +54,7 @@ private:
     tcp::socket m_socket;
     static constexpr std::size_t data_max_length{1024};
     char m_data[data_max_length];
+    const size_type m_socket_addr_hash{0};
     Retransmittor& m_retransmittor;
 };
 

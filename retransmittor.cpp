@@ -1,5 +1,4 @@
 #include <iostream>
-
 #include "retransmittor.hpp"
 
 using namespace async_server;
@@ -13,9 +12,8 @@ void Retransmittor::on_read(rc_data&& data)
     m_storage.push(std::forward<decltype(data)>(data));
 }
 
-void Retransmittor::on_socket_close(std::string address)
+void Retransmittor::on_socket_close(size_type address)
 {
-    //auto el{m_endpoints_handlers.by<endpoint>().find(address)};
     auto el{m_endpoints_handlers.left.find(address)};
     if(el != m_endpoints_handlers.left.end())
     {
@@ -33,10 +31,7 @@ void Retransmittor::run()
         while(!m_storage.empty())
         {
             const auto pack{m_storage.pop()};
-            //std::cout << "\nendpoint: " << pack.m_endpoint << std::endl;
-            //std::cout << "data received: " << pack.m_data << std::endl;
             const auto addr{std::move(pack.m_endpoint)};
-            //auto el{m_endpoints_handlers.by<endpoint>().find(addr)};
             auto el{m_endpoints_handlers.left.find(addr)};
             async::handler_t h{nullptr};
             if(el == m_endpoints_handlers.left.end())

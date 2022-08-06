@@ -63,7 +63,7 @@ public:
     Retransmittor(size_type bulk_size);
 
     void on_read(rc_data&& data);
-    void on_socket_close(std::string address);
+    void on_socket_close(size_type address);
 //    void on_write(); ???
 
     void run();
@@ -76,9 +76,9 @@ private:
     /// \note The allocator is specified because gcc-11 fails to compile the code
     ///       with default allocator and c++20.
     ///       In gcc-12 the problem is fixed.
-    boost::bimap<boost::bimaps::unordered_set_of<std::string>
+    boost::bimap<boost::bimaps::unordered_set_of<size_type>
                 ,async::handler_t
-                ,boost::fast_pool_allocator<std::pair<std::string, async::handler_t>>
+                ,boost::fast_pool_allocator<std::pair<size_type, async::handler_t>>
                 //,boost::container::allocator<std::pair<std::string, async::handler_t>>
                 > m_endpoints_handlers;
 };

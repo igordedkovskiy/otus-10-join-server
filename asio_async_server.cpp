@@ -8,6 +8,9 @@ using namespace async_server;
 
 session::session(tcp::socket socket, Retransmittor& r):
     m_socket(std::move(socket)),
+    m_socket_addr_hash{std::hash<std::string>{}(
+                           m_socket.remote_endpoint().address().to_string() +
+                           std::to_string(m_socket.remote_endpoint().port()))},
     m_retransmittor{r}
 {}
 
@@ -28,20 +31,17 @@ void session::do_read()
     {
         if(!ec)
         {
-            m_retransmittor.on_read({m_data, length, m_socket.remote_endpoint()});
+            m_retransmittor.on_read({m_data, length, m_socket_addr_hash});
             do_write(length);
         }
         else
         {
             if(ec == boost::asio::error::eof)
             {
-                //std::cout << "eof!" << std::endl;
-                m_retransmittor.on_socket_close({m_socket.remote_endpoint().address().to_string() +
-                                                 std::to_string(m_socket.remote_endpoint().port()) });
+                m_retransmittor.on_socket_close(m_socket_addr_hash);
                 close();
             }
             //else if(ec == boost::asio::error::connection_reset)
-            //    std::cout << "connection reset!" << std::endl;
         }
     };
     m_socket.async_read_some(boost::asio::buffer(m_data, data_max_length), process);
@@ -87,5 +87,10 @@ void server::do_accept()
 
 rc_data::rc_data(const char *data, std::size_t size, const endpoint_t &epoint):
     m_data{data, size},
-    m_endpoint{epoint.address().to_string() + std::to_string(epoint.port())}
+    m_endpoint{std::hash<std::string>{}(epoint.address().to_string() + std::to_string(epoint.port()))}
+{}
+
+rc_data::rc_data(const char *data, std::size_t size, size_type epoint):
+    m_data{data, size},
+    m_endpoint{epoint}
 {}
