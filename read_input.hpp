@@ -23,21 +23,25 @@ void read_input(std::istream& in_stream, std::ostream& err_stream, F process)
                 process(std::move(read));
                 read.clear();
             }
-            catch(ParseErr)
+            catch(const ParseErr& e)
             {
+                in_stream.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
                 err_stream << "Failed to process input at line "
                            << lines_cntr
                            << ": incorrect format\n";
-                last_failed_line = lines_cntr;
-                --lines_cntr;
+//                last_failed_line = lines_cntr;
+//                --lines_cntr;
+                throw e;
             }
-            catch(std::exception& e)
+            catch(const std::exception& e)
             {
+                in_stream.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
                 err_stream << "Failed to process input at line "
                            << lines_cntr << ": "
                            << e.what()
                            << '\n';
-                break;
+//                break;
+                throw e;
             }
         }
         in_stream.ignore(std::numeric_limits<std::streamsize>::max(), '\n');

@@ -1,15 +1,51 @@
 #include <iostream>
 #include "retransmittor.hpp"
+#include "CmdCollector.hpp"
 
 using namespace async_server;
 
 Retransmittor::Retransmittor(size_type bulk_size):
-    m_bulk_size{bulk_size}
+    m_bulk_size{bulk_size},
+    m_static_bulks_handler{async::connect_with(bulk_size)}
 {}
+
+Retransmittor::~Retransmittor()
+{
+    async::disconnect(m_static_bulks_handler);
+    for(const auto& [set, h]:m_endpoints_handlers.right)
+        async::disconnect(h);
+}
 
 void Retransmittor::on_read(rc_data&& data)
 {
-    m_storage.push(std::forward<decltype(data)>(data));
+    const auto addr{std::move(data.m_endpoint)};
+    auto el{m_endpoints_handlers.left.find(addr)};
+    async::handler_t h{nullptr};
+    if(el == m_endpoints_handlers.left.end())
+    {
+        h = async::connect_with(m_bulk_size);
+        m_endpoints_handlers.insert({std::forward<decltype(addr)>(addr), h});
+    }
+    else
+        h = el->second;
+    try
+    {
+        auto where = m_data_preprocessor.run(h, data.m_data.c_str(), data.m_data.size()-1);
+        std::size_t start{0};
+        for(auto [end, type]:where)
+        {
+            if(type == DataPreprocessor::BlockType::STATIC)
+                async::receive(m_static_bulks_handler, data.m_data.c_str() + start, end - start);
+            else
+                async::receive(m_static_bulks_handler, data.m_data.c_str() + start, end - start);
+            start = end;
+        }
+    }
+    catch(CmdCollector::ParseErr& e)
+    {
+        m_data_preprocessor.reset(h);
+        throw e;
+    }
 }
 
 void Retransmittor::on_socket_close(size_type address)
@@ -17,94 +53,11 @@ void Retransmittor::on_socket_close(size_type address)
     auto el{m_endpoints_handlers.left.find(address)};
     if(el != m_endpoints_handlers.left.end())
     {
-        async::disconnect(el->second);
+        const auto h{el->second};
+        async::disconnect(h);
+        m_data_preprocessor.remove(h);
         el = m_endpoints_handlers.left.erase(el);
     }
-}
-
-void Retransmittor::run()
-{
-    const auto handler_for_static{async::connect_with(m_bulk_size)};
-    while(true)
-    {
-        m_storage.wait();
-        while(!m_storage.empty())
-        {
-            const auto pack{m_storage.pop()};
-            const auto addr{std::move(pack.m_endpoint)};
-            auto el{m_endpoints_handlers.left.find(addr)};
-            async::handler_t h{nullptr};
-            if(el == m_endpoints_handlers.left.end())
-            {
-                h = async::connect_with(m_bulk_size);
-                m_endpoints_handlers.insert({std::move(addr), h});
-            }
-            else
-                h = el->second;
-
-            auto where = m_data_preprocessor.run(h, pack.m_data.c_str(), pack.m_data.size()-1);
-            std::size_t start{0};
-            for(auto [end, type]:where)
-            {
-                if(type == DataPreprocessor::BlockType::STATIC)
-                    async::receive(handler_for_static, pack.m_data.c_str() + start, end - start);
-                else
-                    async::receive(h, pack.m_data.c_str() + start, end - start);
-                start = end;
-            }
-        }
-    }
-    async::disconnect(handler_for_static);
-    for(auto it = m_endpoints_handlers.right.begin(); it != m_endpoints_handlers.right.end(); ++it)
-    {
-        async::disconnect(it->first);
-        it = m_endpoints_handlers.right.erase(it);
-    }
-}
-
-void Retransmittor::Queue::push(rc_data &&d)
-{
-    {
-        std::scoped_lock lk{m_mutex};
-        m_queue.push_back(std::forward<decltype(d)>(d));
-        m_received = true;
-    }
-    m_cv.notify_one();
-}
-
-rc_data Retransmittor::Queue::pop()
-{
-    std::scoped_lock lk{m_mutex};
-    if(m_queue.empty())
-        return rc_data{};
-    rc_data data{m_queue.front()};
-    m_queue.pop_front();
-    return data;
-}
-
-rc_data Retransmittor::Queue::front()
-{
-    std::scoped_lock lk{m_mutex};
-    if(m_queue.empty())
-        return rc_data{};
-    rc_data data{m_queue.front()};
-    return data;
-}
-
-void Retransmittor::Queue::wait()
-{
-    while(!m_received)
-    {
-        std::unique_lock lk{m_mutex};
-        m_cv.wait(lk, [this]{ return m_received; });
-    }
-    m_received = false;
-}
-
-bool Retransmittor::Queue::empty()
-{
-    std::unique_lock lk{m_mutex};
-    return m_queue.empty();
 }
 
 Retransmittor::DataPreprocessor::where_to_cut_t Retransmittor::DataPreprocessor::run(handler_t h, const char *data, size_type data_size, bool update_state)
@@ -113,8 +66,6 @@ Retransmittor::DataPreprocessor::where_to_cut_t Retransmittor::DataPreprocessor:
     if(el == std::end(m_map))
     {
         auto e{m_map.insert(std::make_pair(h, helper{}))};
-        if(!e.second)
-            throw;
         el = e.first;
     }
 
@@ -136,7 +87,7 @@ Retransmittor::DataPreprocessor::where_to_cut_t Retransmittor::DataPreprocessor:
         else if(data[cntr] == '}')
         {
             if(braces_cntr == 0)
-                throw;
+                throw CmdCollector::ParseErr::incorrect_format;
             if(--braces_cntr == 0)
             {
                 curent_type = BlockType::STATIC;
@@ -150,4 +101,19 @@ Retransmittor::DataPreprocessor::where_to_cut_t Retransmittor::DataPreprocessor:
     if(result.empty())
         result.emplace_back(std::make_pair(data_size, curent_type));
     return result;
+}
+
+void Retransmittor::DataPreprocessor::remove(handler_t h)
+{
+    auto el{m_map.find(h)};
+    if(el != std::end(m_map))
+        el = m_map.erase(el);
+}
+
+void Retransmittor::DataPreprocessor::reset(handler_t h)
+{
+    auto el{m_map.find(h)};
+    if(el != std::end(m_map))
+        el->second = helper{};
+
 }

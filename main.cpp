@@ -12,6 +12,7 @@ using boost::asio::ip::tcp;
 
 int main(int argc, char* argv[])
 {
+    std::locale::global(std::locale(""));
     try
     {
         if(argc != 3)
@@ -21,20 +22,14 @@ int main(int argc, char* argv[])
         }
         const std::size_t bulk_size{std::stoul(argv[2])};
         async_server::Retransmittor retransmittor{bulk_size};
-        auto server_main = [&retransmittor](char* argv[])
-        {
-            boost::asio::io_context io_context;
-            async_server::server server(io_context, std::atoi(argv[1]), retransmittor);
-            io_context.run();
-        };
-
-        std::thread t{server_main, argv};
-        t.detach();
-        retransmittor.run();
+        std::locale::global(std::locale(""));
+        boost::asio::io_context io_context;
+        async_server::server server(io_context, std::atoi(argv[1]), retransmittor);
+        io_context.run();
     }
-    catch (const std::exception& ex)
+    catch(const std::exception& e)
     {
-        std::cerr << "Exception: " << ex.what() << "\n";
+        std::cerr << "Exception: " << e.what() << std::endl;
     }
     return 0;
 }

@@ -45,7 +45,10 @@ void CmdCollector::process_cmd(std::string &&cmd)
     else if(cmd == "}")
     {
         if(m_braces == 0)
+        {
+            clear_commands();
             throw ParseErr::incorrect_format;
+        }
         if(--m_braces == 0)
         {
             m_type = BlockType::STATIC;
@@ -54,6 +57,14 @@ void CmdCollector::process_cmd(std::string &&cmd)
     }
     else
     {
+        if(cmd.find_first_of('{') != std::string::npos
+           ||
+           cmd.find_first_of('}') != std::string::npos)
+        {
+            clear_commands();
+            throw ParseErr::incorrect_format;
+        }
+
         m_cmds.emplace_back(std::move(cmd));
         if(m_cmds.size() == 1)
             m_time = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());

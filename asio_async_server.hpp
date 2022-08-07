@@ -46,14 +46,13 @@ public:
 
 private:
     void do_read();
-
-    void do_write(std::size_t length);
-
+//    void do_write(std::size_t length);
     void close();
 
     tcp::socket m_socket;
     static constexpr std::size_t data_max_length{1024};
     char m_data[data_max_length];
+    char m_wdata[data_max_length];
     const size_type m_socket_addr_hash{0};
     Retransmittor& m_retransmittor;
 };
