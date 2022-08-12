@@ -1,7 +1,6 @@
 #include <iostream>
 #include <memory>
 
-#include "CmdCollector.hpp"
 #include "asio_async_server.hpp"
 #include "retransmittor.hpp"
 
@@ -42,7 +41,7 @@ void session::do_read()
             {
                 m_retransmittor.on_read({m_data, length, m_socket_addr_hash});
             }
-            catch(CmdCollector::ParseErr& e)
+            catch(Retransmittor::ParseErr& e)
             {
                 auto process = [this, self](boost::system::error_code ec, std::size_t /*length*/)
                 {

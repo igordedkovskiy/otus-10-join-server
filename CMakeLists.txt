@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.2)
 set(PATCH_VERSION "2" CACHE INTERNAL "Patch version")
 set(PROJECT_VERSION 0.0.${PATCH_VERSION})
 
-project(bulk-server VERSION ${PROJECT_VERSION})
+project(join-server VERSION ${PROJECT_VERSION})
 
 option(WITH_GTEST "Whether to build google test" OFF)
 option(GIT_SUBMODULE "Check submodules during build" ON)
@@ -36,47 +36,24 @@ add_executable(${PROJECT_NAME}
     "asio_async_server.cpp"
     "retransmittor.hpp"
     "retransmittor.cpp"
-    "read_input.hpp"
-    "read_input.cpp"
     ${SQLITE_SOURCES}
 )
-
-#add_library(async_lib SHARED
-#    "async.h"
-#    "async.cpp"
-#    "async_impl.hpp"
-#    "async_impl.cpp"
-#    "CmdCollector.hpp"
-#    "CmdCollector.cpp"
-#    "read_input.hpp"
-#    "read_input.cpp"
-#    "generator.hpp"
-#)
 
 set_target_properties(${PROJECT_NAME} PROPERTIES
     CXX_STANDARD 20
     CXX_STANDARD_REQUIRED ON
 )
 
-#set_target_properties(async_lib PROPERTIES
-#    CXX_STANDARD 20
-#    CXX_STANDARD_REQUIRED ON
-#)
-
-#target_include_directories(async_lib PRIVATE
-#    ${CMAKE_BINARY_DIR}
-#)
-
 target_include_directories(${PROJECT_NAME} PRIVATE
     ${CMAKE_BINARY_DIR}
     ${Boost_INCLUDE_DIR}
+    ${SQLite3_INCLUDE_DIRS}
 )
 
 target_link_libraries(${PROJECT_NAME} PRIVATE
-#    async_lib
     ${CMAKE_THREAD_LIBS_INIT}
     ${Boost_LIBRARIES}
-#    ${EXTRA_LINKS}
+    ${SQLite3_LIBRARIES}
 )
 
 #if(WITH_GTEST)
@@ -157,9 +134,6 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     target_compile_options(${PROJECT_NAME} PRIVATE
         /W4 /await
     )
-#    target_compile_options(async_lib PRIVATE
-#        /W4 /await
-#    )
 #    if(WITH_GTEST)
 #        target_compile_options(test_async PRIVATE
 #            /W4 /await
@@ -169,9 +143,6 @@ elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     target_compile_options(${PROJECT_NAME} PRIVATE
         "-Wall" "-Wextra" "-Werror" "-pedantic" "-fcoroutines"
     )
-#    target_compile_options(async_lib PRIVATE
-#        "-Wall" "-Wextra" "-Werror" "-pedantic" "-fcoroutines"
-#    )
 #    if(WITH_GTEST)
 #        target_compile_options(test_async PRIVATE
 #            "-Wall" "-Wextra" "-Werror" "-pedantic" "-fcoroutines"

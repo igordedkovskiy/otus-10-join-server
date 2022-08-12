@@ -13,15 +13,15 @@ using boost::asio::ip::tcp;
 int main(int argc, char* argv[])
 {
     std::locale::global(std::locale(""));
+    if(argc != 2)
+    {
+        std::cerr << "Usage: " << argv[0] << " <port>" << std::endl;
+        return 1;
+    }
+
     try
     {
-        if(argc != 3)
-        {
-            std::cerr << "Usage: bulk_server <port> <bulk_size>\n";
-            return 1;
-        }
-        const std::size_t bulk_size{std::stoul(argv[2])};
-        async_server::Retransmittor retransmittor{bulk_size};
+        async_server::Retransmittor retransmittor;
         std::locale::global(std::locale(""));
         boost::asio::io_context io_context;
         async_server::server server(io_context, std::atoi(argv[1]), retransmittor);
