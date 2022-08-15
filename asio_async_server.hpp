@@ -13,15 +13,12 @@
 #include <cstdlib>
 #include <boost/asio.hpp>
 
-#include "async.h"
-
 namespace async_server
 {
 
 using boost::asio::ip::tcp;
 
-using size_type = async::size_type;
-using handler_t = async::handler_t;
+using size_type = std::size_t;
 
 using endpoint_t = boost::asio::ip::basic_endpoint<boost::asio::ip::tcp>;
 struct rc_data

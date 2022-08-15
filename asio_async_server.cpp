@@ -3,6 +3,7 @@
 
 #include "asio_async_server.hpp"
 #include "retransmittor.hpp"
+#include "ParseErr.hpp"
 
 using namespace async_server;
 
@@ -37,22 +38,26 @@ void session::do_read()
     {
         if(!ec)
         {
+            auto process = [this, self](boost::system::error_code ec, std::size_t /*length*/)
+            {
+                if(!ec)
+                    do_read();
+            };
+            std::string msg;
             try
             {
-                m_retransmittor.on_read({m_data, length, m_socket_addr_hash});
+                const auto result{m_retransmittor.on_read({m_data, length, m_socket_addr_hash})};
+                msg = result.first;
+                if(result.second)
+                    msg += "OK\n";
+                else
+                    msg += "ERR\n";
             }
-            catch(Retransmittor::ParseErr& e)
+            catch(const ParseErr& e)
             {
-                auto process = [this, self](boost::system::error_code ec, std::size_t /*length*/)
-                {
-                    if(!ec)
-                        do_read();
-                };
-                boost::asio::async_write(m_socket,
-                                         boost::asio::buffer("Incorrect format\n\0",
-                                                             sizeof("Incorrect format\n\0")),
-                                         process);
+                msg = e.get_message() + '\n';
             }
+            boost::asio::async_write(m_socket, boost::asio::buffer(msg.c_str(), msg.size()), process);
             do_read();
         }
         else

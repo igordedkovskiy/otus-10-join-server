@@ -29,6 +29,43 @@ if(NOT SQLite3_FOUND)
     list(APPEND SQLITE_SOURCES "${sqlite3_SOURCE_DIR}/sqlite3.c")
 endif()
 
+add_library(db_lib SHARED
+    "SQLiteDB.hpp"
+    "SQLiteDB.cpp"
+    "SimpleDB.hpp"
+    "SimpleDB.cpp"
+    "OtusDB.hpp"
+    "OtusDB.cpp"
+    "ParseErr.hpp"
+    "ParseErr.cpp"
+    ${SQLITE_SOURCES}
+)
+set_target_properties(db_lib PROPERTIES
+    CXX_STANDARD 20
+    CXX_STANDARD_REQUIRED ON
+)
+target_include_directories(db_lib PRIVATE
+    ${SQLite3_INCLUDE_DIRS}
+)
+target_link_libraries(db_lib PRIVATE
+    ${CMAKE_THREAD_LIBS_INIT}
+    ${SQLite3_LIBRARIES}
+)
+
+add_executable(cpp-sqlite "cpp-sqlite.cpp")
+set_target_properties(cpp-sqlite PROPERTIES
+    CXX_STANDARD 20
+    CXX_STANDARD_REQUIRED ON
+)
+target_include_directories(cpp-sqlite PRIVATE
+    ${CMAKE_BINARY_DIR}
+    ${Boost_INCLUDE_DIR}
+)
+target_link_libraries(cpp-sqlite PRIVATE
+    db_lib
+    ${CMAKE_THREAD_LIBS_INIT}
+    ${Boost_LIBRARIES}
+)
 
 add_executable(${PROJECT_NAME}
     "main.cpp"
@@ -36,7 +73,6 @@ add_executable(${PROJECT_NAME}
     "asio_async_server.cpp"
     "retransmittor.hpp"
     "retransmittor.cpp"
-    ${SQLITE_SOURCES}
 )
 
 set_target_properties(${PROJECT_NAME} PROPERTIES
@@ -46,14 +82,11 @@ set_target_properties(${PROJECT_NAME} PROPERTIES
 
 target_include_directories(${PROJECT_NAME} PRIVATE
     ${CMAKE_BINARY_DIR}
-    ${Boost_INCLUDE_DIR}
-    ${SQLite3_INCLUDE_DIRS}
 )
 
 target_link_libraries(${PROJECT_NAME} PRIVATE
+    db_lib
     ${CMAKE_THREAD_LIBS_INIT}
-    ${Boost_LIBRARIES}
-    ${SQLite3_LIBRARIES}
 )
 
 #if(WITH_GTEST)
