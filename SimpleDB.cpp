@@ -51,7 +51,7 @@ const std::string &SimpleDB::last_error_msg() const noexcept
     return m_db.last_error_msg();
 }
 
-std::pair<SimpleDB::sql_cmd_t, SimpleDB::sql_t> SimpleDB::convert_sql(const sql_t &sql)
+std::pair<SimpleDB::sql_cmd_t, sql_t> SimpleDB::convert_sql(const sql_t &sql)
 {
     return std::make_pair(sql_cmd_t{}, sql);
 }

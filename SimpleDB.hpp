@@ -15,7 +15,6 @@ class SimpleDB
 {
 public:
     using err_t = int;
-    using sql_t = std::string;
     using sql_cmd_t = std::vector<std::string>;
     using table_t = std::vector<std::vector<std::string>>;
     using qresult_t = std::pair<table_t, bool>;

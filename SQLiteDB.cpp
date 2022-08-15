@@ -55,7 +55,7 @@ SQLiteDB::err_t SQLiteDB::last_error_code() const noexcept
     return m_last_err_code;
 }
 
-SQLiteDB::qresult_t SQLiteDB::execute_query(const std::string &sql)
+SQLiteDB::qresult_t SQLiteDB::execute_query(const sql_t& sql)
 {
     auto get_result = [](void* resPtr, int columns, char **data, char **names) -> int
     {

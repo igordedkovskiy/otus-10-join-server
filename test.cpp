@@ -8,106 +8,87 @@
 #include <cassert>
 #include "gtest/gtest.h"
 
-#include "read_input.hpp"
-#include "async.h"
+#include "OtusDB.hpp"
+#include "ParseErr.hpp"
 
-namespace
+void run(otus_db::OtusDB& db, otus_db::sql_t&& sql, const otus_db::SimpleDB::qresult_t& qresult, const std::string& exc_msg)
 {
-
-constexpr async::size_type bulk_size{3};
-
-auto find_file(std::string masks)
-{
-    const auto regexp_cmp{std::regex(masks)};
-    namespace fs = std::filesystem;
-    const auto path{fs::absolute(".")};
-//    const auto path{fs::absolute("./bulk")};
-    using iterator = fs::directory_iterator;
-    std::vector<std::string> fnames;
-    for(auto it{iterator(path)}; it != iterator(); ++it)
+    try
     {
-        const auto path{fs::absolute(it->path())};
-        if(!fs::is_directory(path))
-        {
-            const auto fname{path.filename().string()};
-            if(regex_match(fname, regexp_cmp))
-                fnames.emplace_back(std::move(fname));
-        }
+//        std::cout << sql << std::endl;
+        const auto res{db.execute_query(std::move(sql))};
+//        if(!qresult.second)
+//            std::cout << db.last_error_msg() << std::endl;
+        ASSERT_TRUE(res.second == qresult.second);
+//        for(const auto& row:res.first)
+//        {
+//            for(const auto& line:row)
+//                std::cout << line << std::endl;
+//            std::cout << std::endl;
+//        }
+        ASSERT_TRUE(res.first == qresult.first);
     }
-    return fnames;
+    catch(const ParseErr& e)
+    {
+        ASSERT_TRUE(e.get_message() == exc_msg);
+    }
 }
 
-bool check(std::stringstream ref, std::string masks)
+TEST(TEST_SQLITE_WRAP, sqlite_wrapper)
 {
-    const auto fname{find_file(std::move(masks))};
-    if(fname.empty())
-    {
-        std::cout << "File not found!\n";
-        return false;
-    }
-    for(const auto& fn:fname)
-    {
-        std::fstream file{fn, std::fstream::in};
-        std::stringstream out;
-        out << file.rdbuf();
-        if(out.str() == ref.str())
-        {
-            std::cout << "File " << fn << " fits" << std::endl;
-            std::cout << "File: " << out.str() << std::endl;
-            std::cout << "Ref:  " << ref.str() << std::endl;
-            std::cout << std::endl;
-            return true;
-        }
-        std::cout << "File " << fn << " doesn't fit" << std::endl;
-        std::cout << "File: " << out.str() << std::endl;
-        std::cout << "Ref:  " << ref.str() << std::endl;
-        std::cout << std::endl;
-    }
-    return false;
-}
+    otus_db::OtusDB db;
+    db.execute_query("TRUNCATE A");
+    db.execute_query("TRUNCATE B");
 
-}
+    otus_db::SimpleDB::qresult_t result{otus_db::SimpleDB::table_t{}, true};
+    std::string exc_msg;
+    run(db, "INSERT A 4 quality", result, exc_msg);
+    run(db, "INSERT A 1 sweater", result, exc_msg);
+    run(db, "INSERT A 2 frank", result, exc_msg);
+    run(db, "INSERT A 3 violation", result, exc_msg);
+    run(db, "INSERT A 0 lean", result, exc_msg);
+    run(db, "INSERT A 5 precision", result, exc_msg);
 
-TEST(TEST_ASYNC, async_sinlge_thread)
-{
-    const auto h1{async::connect_with(bulk_size)};
-    const auto h2{async::connect_with(bulk_size)};
+    run(db, "INSERT B 5 lake", result, exc_msg);
+    run(db, "INSERT B 3 proposal", result, exc_msg);
+    run(db, "INSERT B 4 example", result, exc_msg);
+    run(db, "INSERT B 7 wonder", result, exc_msg);
+    run(db, "INSERT B 6 flour", result, exc_msg);
+    run(db, "INSERT B 8 selection", result, exc_msg);
 
-    {
-        async::receive(h2, "cmd1\n", 5);
-        async::receive(h1, "cmd1\ncmd2\n", 10);
-        async::receive(h2, "cmd2\n{\ncmd3\ncmd4\n}\n", 19);
-        async::receive(h2, "{\n", 2);
-        async::receive(h2, "cmd5\ncmd6\n{\ncmd7\ncmd8\n}\ncmd9\n}\n", 31);
-        async::receive(h1, "cmd3\ncmd4\n", 10);
-        async::receive(h2, "{\ncmd10\ncmd11\n", 12);
-        async::receive(h1, "cmd5\n", 5);
+    result.first = {{"id", "name", "name"},
+                    {"3", "violation", "proposal"},
+                    {"4", "quality", "example"},
+                    {"5", "precision", "lake"}
+                   };
+    run(db, "INTERSECTION", result, exc_msg);
 
-        async::disconnect(h1);
-        async::disconnect(h2);
-    }
+    result.first = {{"id", "name"},
+                    {"0", "lean"},
+                    {"1", "sweater"},
+                    {"2", "frank"},
+                    {"6", "flour"},
+                    {"7", "wonder"},
+                    {"8", "selection"},
+                   };
+    run(db, "SYMMETRIC_DIFFERENCE", result, exc_msg);
 
-//    async::wait();
+    result.second = false;
+    exc_msg = "ERR duplicate B 7";
+    run(db, "INSERT B 7 wonder", result, exc_msg);
+    exc_msg = "ERR duplicate A 0";
+    run(db, "INSERT A 0 qwerty", result, exc_msg);
 
-    // context 1
-    std::cout << "masks:" << std::endl;
-    std::cout << std::string{"(bulk-" + std::to_string((unsigned long long)h1) + "-.*.log)"} << std::endl;
-    ASSERT_TRUE(check(std::stringstream{"bulk: cmd1, cmd2, cmd3\n"},
-                      "(bulk-" + std::to_string((unsigned long long)h1) + "-.*.log)"));
-    std::cout << std::string{"(bulk-" + std::to_string((unsigned long long)h1) + "-.*.log)"} << std::endl;
-    ASSERT_TRUE(check(std::stringstream{"bulk: cmd4, cmd5\n"},
-                      "(bulk-" + std::to_string((unsigned long long)h1) + "-.*.log)"));
-
-    // context 2
-    std::cout << std::string{"(bulk-" + std::to_string((unsigned long long)h2) + "-.*.log)"} << std::endl;
-    ASSERT_TRUE(check(std::stringstream{"bulk: cmd1, cmd2\n"},
-                      "(bulk-" + std::to_string((unsigned long long)h2) + "-.*.log)"));
-    std::cout << std::string{"(bulk-" + std::to_string((unsigned long long)h2) + "-.*.log)"} << std::endl;
-    ASSERT_TRUE(check(std::stringstream{"bulk: cmd3, cmd4\n"},
-                      "(bulk-" + std::to_string((unsigned long long)h2) + "-.*.log)"));
-    std::cout << std::string{"(bulk-" + std::to_string((unsigned long long)h2) + "-.*.log)"} << std::endl;
-    ASSERT_TRUE(check(std::stringstream{"bulk: cmd5, cmd6, cmd7, cmd8, cmd9\n"},
-                      "(bulk-" + std::to_string((unsigned long long)h2) + "-.*.log)"));
+    result.first = {{"id", "name"},
+                    {"0", "lean"},
+                    {"1", "sweater"},
+                    {"2", "frank"},
+                    {"6", "flour"},
+                    {"7", "wonder"},
+                    {"8", "selection"},
+                   };
+    result.second = true;
+    run(db, "SYMMETRIC_DIFFERENCE", result, "");
 }
 
 int main(int argc, char** argv)

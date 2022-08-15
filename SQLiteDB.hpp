@@ -10,6 +10,8 @@ struct sqlite3;
 namespace otus_db
 {
 
+using sql_t = std::string;
+
 class SQLiteDB
 {
 public:
@@ -25,7 +27,7 @@ public:
 
     void close();
 
-    qresult_t execute_query(const std::string& sql);
+    qresult_t execute_query(const sql_t& sql);
 
     err_t last_error_code() const noexcept;
 

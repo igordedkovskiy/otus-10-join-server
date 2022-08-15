@@ -44,7 +44,7 @@ OtusDB::OtusDB()
 //    }
 }
 
-std::pair<SimpleDB::sql_cmd_t, SimpleDB::sql_t> OtusDB::convert_sql(const sql_t &sql)
+std::pair<SimpleDB::sql_cmd_t, sql_t> OtusDB::convert_sql(const sql_t &sql)
 {
     sql_t csql;
     std::vector<std::string> cmd;
@@ -69,7 +69,7 @@ std::pair<SimpleDB::sql_cmd_t, SimpleDB::sql_t> OtusDB::convert_sql(const sql_t 
     return std::make_pair(std::move(cmd), std::move(csql));
 }
 
-SimpleDB::sql_t OtusDB::intersection()
+sql_t OtusDB::intersection()
 {
     return "SELECT A.id, A.name, B.name FROM A"
            " INNER JOIN B"
@@ -77,7 +77,7 @@ SimpleDB::sql_t OtusDB::intersection()
            " ORDER BY A.id ASC;";
 }
 
-SimpleDB::sql_t OtusDB::symmetric_difference()
+sql_t OtusDB::symmetric_difference()
 {
     return "SELECT A.id, A.name FROM A"
            " WHERE A.id NOT IN (SELECT B.id FROM B)"
@@ -87,21 +87,21 @@ SimpleDB::sql_t OtusDB::symmetric_difference()
            " ORDER BY id ASC;";
 }
 
-SimpleDB::sql_t OtusDB::insert(const sql_cmd_t& cmd)
+sql_t OtusDB::insert(const sql_cmd_t& cmd)
 {
     if(cmd.size() != 4)
         throw ParseErr{"Incorrect querry format: INSERT [TABLE_NAME]"};
     return "INSERT INTO " + cmd[1] + " VALUES(" + cmd[2] + ", '" + cmd[3] + "');";
 }
 
-SimpleDB::sql_t OtusDB::truncate(const sql_cmd_t& cmd)
+sql_t OtusDB::truncate(const sql_cmd_t& cmd)
 {
     if(cmd.size() != 2)
         throw ParseErr{"Incorrect querry format: TRUNCATE [TABLE_NAME]"};
     return "DELETE FROM " + cmd[1] + ';';
 }
 
-SimpleDB::sql_t OtusDB::print(const sql_cmd_t &cmd)
+sql_t OtusDB::print(const sql_cmd_t &cmd)
 {
     std::cout << __PRETTY_FUNCTION__ << std::endl;
     if(cmd.size() != 2)
@@ -109,7 +109,7 @@ SimpleDB::sql_t OtusDB::print(const sql_cmd_t &cmd)
     return "SELECT * FROM " + cmd[1] + " ORDER BY id ASC;";
 }
 
-SimpleDB::sql_t OtusDB::list_of_tables()
+sql_t OtusDB::list_of_tables()
 {
     std::cout << __PRETTY_FUNCTION__ << std::endl;
     return "SELECT name"
