@@ -20,7 +20,7 @@ void run(otus_db::SQLiteDB& db, otus_db::QueryConverter& conv, otus_db::sql_t sq
         const auto converted{conv.convert_sql(std::move(sql))};
         std::cout << converted.second << std::endl;
         const auto res{db.execute_query(converted.second)};
-        if(!qresult.second)
+        if(!res.second)
             std::cout << db.last_error_msg() << std::endl;
         EXPECT_EQ(res.second, qresult.second);
         for(const auto& row:res.first)
