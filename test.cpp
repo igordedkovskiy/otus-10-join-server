@@ -16,19 +16,19 @@ void run(otus_db::SQLiteDB& db, otus_db::QueryConverter& conv, otus_db::sql_t sq
 {
     try
     {
-//        std::cout << sql << std::endl;
+        std::cout << sql << std::endl;
         const auto converted{conv.convert_sql(std::move(sql))};
-//        std::cout << converted.second << std::endl;
+        std::cout << converted.second << std::endl;
         const auto res{db.execute_query(converted.second)};
-//        if(!qresult.second)
-//            std::cout << db.last_error_msg() << std::endl;
+        if(!qresult.second)
+            std::cout << db.last_error_msg() << std::endl;
         EXPECT_EQ(res.second, qresult.second);
-//        for(const auto& row:res.first)
-//        {
-//            for(const auto& line:row)
-//                std::cout << line << std::endl;
-//            std::cout << std::endl;
-//        }
+        for(const auto& row:res.first)
+        {
+              for(const auto& line:row)
+                std::cout << line << std::endl;
+            std::cout << std::endl;
+        }
         EXPECT_EQ(res.first, qresult.first);
     }
     catch(const ParseErr& e)
