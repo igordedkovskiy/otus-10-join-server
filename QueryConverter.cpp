@@ -11,8 +11,6 @@ extern "C"
 
 using namespace otus_db;
 
-//QueryConverter::convert_result_t QueryConverter::convert_sql(const sql_t& sql)
-//QueryConverter::convert_result_t QueryConverter::convert_sql(sql_t&& sql)
 QueryConverter::convert_result_t QueryConverter::convert_sql(sql_t sql)
 {
     return std::make_pair(sql_cmd_t{}, std::move(sql));

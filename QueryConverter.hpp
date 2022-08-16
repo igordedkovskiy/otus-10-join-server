@@ -18,8 +18,8 @@ public:
 
     virtual ~QueryConverter() = default;
 
-//    virtual convert_result_t convert_sql(const sql_t& sql);
-//    virtual convert_result_t convert_sql(sql_t&& sql);
+    /// \arg \b sql custom query
+    /// \returns custom query - does nothing
     virtual convert_result_t convert_sql(sql_t sql);
 };
 

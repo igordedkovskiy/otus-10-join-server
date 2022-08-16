@@ -11,6 +11,8 @@
 namespace async_server
 {
 
+/// \brief Compose data base and query converter
+///        Provides interface suitable for async server
 class OtusSQLServer
 {
 public:

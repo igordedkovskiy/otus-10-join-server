@@ -36,6 +36,7 @@ struct rc_data
 
 class OtusSQLServer;
 
+/// \brief Connection
 class session: public std::enable_shared_from_this<session>
 {
 public:
@@ -57,6 +58,7 @@ private:
     OtusSQLServer& m_query_server;
 };
 
+/// \brief Async server
 class server
 {
 public:

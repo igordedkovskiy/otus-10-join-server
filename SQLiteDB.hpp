@@ -12,6 +12,7 @@ namespace otus_db
 
 using sql_t = std::string;
 
+/// \brief Wrapper under sqlite3 lib
 class SQLiteDB
 {
 public:
