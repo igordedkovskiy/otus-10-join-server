@@ -6,12 +6,12 @@ extern "C"
 #include "sqlite3.h"
 }
 
-#include "OtusDB.hpp"
+#include "OtusQuery.hpp"
 #include "ParseErr.hpp"
 
 using namespace otus_db;
 
-OtusDB::OtusDB()
+OtusQuery::OtusQuery()
 {
     auto print = [](const table_t& table)
     {
@@ -44,7 +44,7 @@ OtusDB::OtusDB()
 //    }
 }
 
-std::pair<SimpleDB::sql_cmd_t, sql_t> OtusDB::convert_sql(const sql_t &sql)
+std::pair<QueryConverter::sql_cmd_t, sql_t> OtusQuery::convert_sql(const sql_t& sql)
 {
     sql_t csql;
     std::vector<std::string> cmd;
@@ -69,7 +69,7 @@ std::pair<SimpleDB::sql_cmd_t, sql_t> OtusDB::convert_sql(const sql_t &sql)
     return std::make_pair(std::move(cmd), std::move(csql));
 }
 
-sql_t OtusDB::intersection()
+sql_t OtusQuery::intersection()
 {
     return "SELECT A.id, A.name, B.name FROM A"
            " INNER JOIN B"
@@ -77,7 +77,7 @@ sql_t OtusDB::intersection()
            " ORDER BY A.id ASC;";
 }
 
-sql_t OtusDB::symmetric_difference()
+sql_t OtusQuery::symmetric_difference()
 {
     return "SELECT A.id, A.name FROM A"
            " WHERE A.id NOT IN (SELECT B.id FROM B)"
@@ -87,29 +87,28 @@ sql_t OtusDB::symmetric_difference()
            " ORDER BY id ASC;";
 }
 
-sql_t OtusDB::insert(const sql_cmd_t& cmd)
+sql_t OtusQuery::insert(const sql_cmd_t& cmd)
 {
     if(cmd.size() != 4)
         throw ParseErr{"Incorrect querry format: INSERT [TABLE_NAME]"};
     return "INSERT INTO " + cmd[1] + " VALUES(" + cmd[2] + ", '" + cmd[3] + "');";
 }
 
-sql_t OtusDB::truncate(const sql_cmd_t& cmd)
+sql_t OtusQuery::truncate(const sql_cmd_t& cmd)
 {
     if(cmd.size() != 2)
         throw ParseErr{"Incorrect querry format: TRUNCATE [TABLE_NAME]"};
     return "DELETE FROM " + cmd[1] + ';';
 }
 
-sql_t OtusDB::print(const sql_cmd_t &cmd)
+sql_t OtusQuery::print(const sql_cmd_t &cmd)
 {
-    std::cout << __PRETTY_FUNCTION__ << std::endl;
     if(cmd.size() != 2)
         throw ParseErr{"Incorrect querry format: PRINT [TABLE_NAME]"};
     return "SELECT * FROM " + cmd[1] + " ORDER BY id ASC;";
 }
 
-sql_t OtusDB::list_of_tables()
+sql_t OtusQuery::list_of_tables()
 {
     std::cout << __PRETTY_FUNCTION__ << std::endl;
     return "SELECT name"

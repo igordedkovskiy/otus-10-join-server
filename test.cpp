@@ -8,10 +8,10 @@
 #include <cassert>
 #include "gtest/gtest.h"
 
-#include "OtusDB.hpp"
+#include "OtusQuery.hpp"
 #include "ParseErr.hpp"
 
-void run(otus_db::OtusDB& db, otus_db::sql_t&& sql, const otus_db::SimpleDB::qresult_t& qresult, const std::string& exc_msg)
+void run(otus_db::OtusQuery& db, otus_db::sql_t&& sql, const otus_db::QueryConverter::qresult_t& qresult, const std::string& exc_msg)
 {
     try
     {
@@ -36,11 +36,11 @@ void run(otus_db::OtusDB& db, otus_db::sql_t&& sql, const otus_db::SimpleDB::qre
 
 TEST(TEST_SQLITE_WRAP, sqlite_wrapper)
 {
-    otus_db::OtusDB db;
+    otus_db::OtusQuery db;
     db.execute_query("TRUNCATE A");
     db.execute_query("TRUNCATE B");
 
-    otus_db::SimpleDB::qresult_t result{otus_db::SimpleDB::table_t{}, true};
+    otus_db::QueryConverter::qresult_t result{otus_db::QueryConverter::table_t{}, true};
     std::string exc_msg;
     run(db, "INSERT A 4 quality", result, exc_msg);
     run(db, "INSERT A 1 sweater", result, exc_msg);

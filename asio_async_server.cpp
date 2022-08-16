@@ -2,17 +2,18 @@
 #include <memory>
 
 #include "asio_async_server.hpp"
-#include "retransmittor.hpp"
 #include "ParseErr.hpp"
+#include "OtusSQLServer.hpp"
 
 using namespace async_server;
 
-session::session(tcp::socket socket, Retransmittor& r):
+//session::session(tcp::socket socket, Retransmittor& r):
+session::session(tcp::socket socket, OtusSQLServer& r):
     m_socket(std::move(socket)),
     m_socket_addr_hash{std::hash<std::string>{}(
                            m_socket.remote_endpoint().address().to_string() +
                            std::to_string(m_socket.remote_endpoint().port()))},
-    m_retransmittor{r}
+    m_query_server{r}
 {
 //    std::cout << "create session" << std::endl;
 //    std::cout << m_socket.remote_endpoint().address() << ':'
@@ -43,21 +44,23 @@ void session::do_read()
                 if(!ec)
                     do_read();
             };
-            std::string msg;
+            std::string ans;
             try
             {
-                const auto result{m_retransmittor.on_read({m_data, length, m_socket_addr_hash})};
-                msg = result.first;
-                if(result.second)
-                    msg += "OK\n";
-                else
-                    msg += "ERR\n";
+                ans = m_query_server.on_read({m_data, length, m_socket_addr_hash});
+//                const auto result{m_retransmittor.on_read({m_data, length, m_socket_addr_hash})};
+//                ans = result.first;
+//                if(result.second)
+//                    ans += "OK\n";
+//                else
+//                    ans += "ERR\n";
             }
-            catch(const ParseErr& e)
+            //catch(const ParseErr& e)
+            catch(const std::exception& e)
             {
-                msg = e.get_message() + '\n';
+                //ans = e.get_message() + '\n';
             }
-            boost::asio::async_write(m_socket, boost::asio::buffer(msg.c_str(), msg.size()), process);
+            boost::asio::async_write(m_socket, boost::asio::buffer(ans.c_str(), ans.size()), process);
             do_read();
         }
         else
@@ -65,7 +68,7 @@ void session::do_read()
             if(ec == boost::asio::error::eof)
             {
 //                std::cout << __PRETTY_FUNCTION__ << std::endl;
-                m_retransmittor.on_socket_close(m_socket_addr_hash);
+                m_query_server.on_socket_close(m_socket_addr_hash);
                 close();
             }
             //else if(ec == boost::asio::error::connection_reset)
@@ -99,9 +102,10 @@ void session::close()
     }
 }
 
-server::server(boost::asio::io_context &io_context, short port, Retransmittor& r):
+//server::server(boost::asio::io_context &io_context, short port, Retransmittor& r):
+server::server(boost::asio::io_context &io_context, short port, OtusSQLServer& r):
     m_acceptor(io_context, tcp::endpoint(tcp::v4(), port)),
-    m_retransmittor{r}
+    m_query_server{r}
 {
     do_accept();
 }
@@ -111,7 +115,7 @@ void server::do_accept()
     auto process = [this](boost::system::error_code ec, tcp::socket socket)
     {
         if(!ec)
-            std::make_shared<session>(std::move(socket), m_retransmittor)->start();
+            std::make_shared<session>(std::move(socket), m_query_server)->start();
         do_accept();
     };
     m_acceptor.async_accept(process);

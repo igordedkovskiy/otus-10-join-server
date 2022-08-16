@@ -31,12 +31,14 @@ struct rc_data
     const size_type m_endpoint{0};
 };
 
-class Retransmittor;
+//class Retransmittor;
+class OtusSQLServer;
 
 class session: public std::enable_shared_from_this<session>
 {
 public:
-    session(tcp::socket socket, Retransmittor& r);
+    //session(tcp::socket socket, Retransmittor& r);
+    session(tcp::socket socket, OtusSQLServer& r);
     ~session();
 
     void start();
@@ -51,19 +53,21 @@ private:
     char m_data[data_max_length];
     char m_wdata[data_max_length];
     const size_type m_socket_addr_hash{0};
-    Retransmittor& m_retransmittor;
+//    Retransmittor& m_retransmittor;
+//    otus_db::OtusSQLServer& m_otus;
+    OtusSQLServer& m_query_server;
 };
 
 class server
 {
 public:
-    server(boost::asio::io_context& io_context, short port, Retransmittor& r);
+    server(boost::asio::io_context& io_context, short port, OtusSQLServer& r);
 
 private:
     void do_accept();
 
     tcp::acceptor m_acceptor;
-    Retransmittor& m_retransmittor;
+    OtusSQLServer& m_query_server;
 };
 
 }

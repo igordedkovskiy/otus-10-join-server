@@ -6,7 +6,7 @@
 #include <boost/asio.hpp>
 
 #include "asio_async_server.hpp"
-#include "retransmittor.hpp"
+#include "OtusSQLServer.hpp"
 
 using boost::asio::ip::tcp;
 
@@ -21,10 +21,10 @@ int main(int argc, char* argv[])
 
     try
     {
-        async_server::Retransmittor retransmittor;
+        async_server::OtusSQLServer query_server;
         std::locale::global(std::locale(""));
         boost::asio::io_context io_context;
-        async_server::server server(io_context, std::atoi(argv[1]), retransmittor);
+        async_server::server server(io_context, std::atoi(argv[1]), query_server);
         io_context.run();
     }
     catch(const std::exception& e)

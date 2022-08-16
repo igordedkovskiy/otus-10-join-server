@@ -32,10 +32,10 @@ endif()
 add_library(db_lib
     "SQLiteDB.hpp"
     "SQLiteDB.cpp"
-    "SimpleDB.hpp"
-    "SimpleDB.cpp"
-    "OtusDB.hpp"
-    "OtusDB.cpp"
+    "QueryConverter.hpp"
+    "QueryConverter.cpp"
+    "OtusQuery.hpp"
+    "OtusQuery.cpp"
     "ParseErr.hpp"
     "ParseErr.cpp"
     ${SQLITE_SOURCES}
@@ -71,8 +71,8 @@ add_executable(${PROJECT_NAME}
     "main.cpp"
     "asio_async_server.hpp"
     "asio_async_server.cpp"
-    "retransmittor.hpp"
-    "retransmittor.cpp"
+    "OtusSQLServer.hpp"
+    "OtusSQLServer.cpp"
 )
 
 set_target_properties(${PROJECT_NAME} PROPERTIES

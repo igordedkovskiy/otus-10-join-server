@@ -1,6 +1,5 @@
 #pragma once
 
-#include <iostream>
 #include <string>
 #include <vector>
 #include <cstdarg>
@@ -11,7 +10,7 @@
 namespace otus_db
 {
 
-class SimpleDB
+class QueryConverter
 {
 public:
     using err_t = int;
@@ -19,7 +18,7 @@ public:
     using table_t = std::vector<std::vector<std::string>>;
     using qresult_t = std::pair<table_t, bool>;
 
-    virtual ~SimpleDB() = default;
+    virtual ~QueryConverter() = default;
 
     bool is_opened() const noexcept;
 
@@ -33,9 +32,9 @@ public:
 
     const std::string& last_error_msg() const noexcept;
 
-private:
+//private:
     virtual std::pair<sql_cmd_t, sql_t> convert_sql(const sql_t& sql);
-
+private:
 protected:
     SQLiteDB m_db{"cpp_sqlite_db.sqlite"};
 };

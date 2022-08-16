@@ -6,19 +6,19 @@
 #include <cstdarg>
 #include <exception>
 
-#include "SimpleDB.hpp"
+#include "QueryConverter.hpp"
 
 namespace otus_db
 {
 
-class OtusDB: public SimpleDB
+class OtusQuery: public QueryConverter
 {
 public:
-    OtusDB();
+    OtusQuery();
 
-private:
+//private:
     virtual std::pair<sql_cmd_t, sql_t> convert_sql(const sql_t& sql) override;
-
+private:
     sql_t intersection();
     sql_t symmetric_difference();
     sql_t insert(const sql_cmd_t& cmd);

@@ -2,11 +2,11 @@
 #include <string>
 #include <cstdarg>
 
-#include "OtusDB.hpp"
+#include "OtusQuery.hpp"
 
 int main(int argc, char **argv)
 {
-    otus_db::OtusDB db;
+    otus_db::OtusQuery db;
     if(!db.is_opened())
         return EXIT_FAILURE;
 
