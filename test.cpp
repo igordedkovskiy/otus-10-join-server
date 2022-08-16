@@ -42,10 +42,14 @@ TEST(TEST_SQLITE_WRAP, sqlite_wrapper)
     otus_db::SQLiteDB db{"cpp_sqlite_db.sqlite"};
     otus_db::OtusQuery conv;
     auto converted{conv.convert_sql("TRUNCATE A")};
-    db.execute_query(converted.second);
+    auto res = db.execute_query(converted.second);
+    if(!res.second)
+        std::cout << db.last_error_msg() << std::endl;
     converted = conv.convert_sql("TRUNCATE B");
-    db.execute_query(converted.second);
-
+    res = db.execute_query(converted.second);
+    if(!res.second)
+        std::cout << db.last_error_msg() << std::endl;
+    
     otus_db::SQLiteDB::qresult_t result{otus_db::SQLiteDB::table_t{}, true};
     std::string exc_msg;
     run(db, conv, "INSERT A 4 quality", result, exc_msg);
