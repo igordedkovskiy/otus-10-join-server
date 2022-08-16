@@ -27,17 +27,18 @@ struct rc_data
     rc_data(const char* data, std::size_t size, const endpoint_t& epoint);
     rc_data(const char* data, std::size_t size, size_type epoint);
 
-    const std::string m_data;
-    const size_type m_endpoint{0};
+    rc_data(const rc_data&) = default;
+    rc_data(rc_data&&) = default;
+
+    std::string m_data;
+    size_type m_endpoint{0};
 };
 
-//class Retransmittor;
 class OtusSQLServer;
 
 class session: public std::enable_shared_from_this<session>
 {
 public:
-    //session(tcp::socket socket, Retransmittor& r);
     session(tcp::socket socket, OtusSQLServer& r);
     ~session();
 
@@ -53,8 +54,6 @@ private:
     char m_data[data_max_length];
     char m_wdata[data_max_length];
     const size_type m_socket_addr_hash{0};
-//    Retransmittor& m_retransmittor;
-//    otus_db::OtusSQLServer& m_otus;
     OtusSQLServer& m_query_server;
 };
 

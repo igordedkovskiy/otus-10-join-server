@@ -28,7 +28,7 @@ OtusSQLServer::OtusSQLServer():
         }
     };
 
-    const auto& [table, res]{m_db.execute_query("SELECT name FROM sqlite_master WHERE type='table';")};
+    const auto [table, res]{m_db.execute_query("SELECT name FROM sqlite_master WHERE type='table';")};
 //    print(table);
     if(table.empty())
     {
@@ -52,8 +52,8 @@ async_server::OtusSQLServer::answer_t async_server::OtusSQLServer::on_read(rc_da
 {
     try
     {
-        const auto& [cmd, csql]{m_converter->convert_sql(std::move(data.m_data))};
-        const auto& [table, res]{m_db.execute_query(std::move(csql))};
+        const auto [cmd, csql]{m_converter->convert_sql(std::move(data.m_data))};
+        const auto [table, res]{m_db.execute_query(csql)};
         std::string msg;
         if(!res)
         {
@@ -64,17 +64,19 @@ async_server::OtusSQLServer::answer_t async_server::OtusSQLServer::on_read(rc_da
             }
             return "ERR\n";
         }
-        else
+        for(std::size_t cntr{1}; cntr < table.size(); ++cntr)
         {
-            for(std::size_t cntr{1}; cntr < table.size(); ++cntr)
+            auto& row{table[cntr]};
+            for(auto& cell:row)
             {
-                auto& row{table[cntr]};
-                for(const auto& cell:row)
-                    msg += std::move(cell) + ' ';
-                msg += '\n';
+                msg += std::move(cell);
+                if(msg.back() == '\n')
+                    msg.resize(msg.size() - 1);
+                msg += ' ';
             }
-            msg += "OK\n";
+            msg += '\n';
         }
+        msg += "OK\n";
         return msg;
     }
     catch(const ParseErr& e)

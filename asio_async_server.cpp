@@ -7,7 +7,6 @@
 
 using namespace async_server;
 
-//session::session(tcp::socket socket, Retransmittor& r):
 session::session(tcp::socket socket, OtusSQLServer& r):
     m_socket(std::move(socket)),
     m_socket_addr_hash{std::hash<std::string>{}(
@@ -48,17 +47,11 @@ void session::do_read()
             try
             {
                 ans = m_query_server.on_read({m_data, length, m_socket_addr_hash});
-//                const auto result{m_retransmittor.on_read({m_data, length, m_socket_addr_hash})};
-//                ans = result.first;
-//                if(result.second)
-//                    ans += "OK\n";
-//                else
-//                    ans += "ERR\n";
             }
-            //catch(const ParseErr& e)
             catch(const std::exception& e)
             {
-                //ans = e.get_message() + '\n';
+                std::cerr << e.what() << std::endl;
+                do_read();
             }
             boost::asio::async_write(m_socket, boost::asio::buffer(ans.c_str(), ans.size()), process);
             do_read();
@@ -67,7 +60,6 @@ void session::do_read()
         {
             if(ec == boost::asio::error::eof)
             {
-//                std::cout << __PRETTY_FUNCTION__ << std::endl;
                 m_query_server.on_socket_close(m_socket_addr_hash);
                 close();
             }
@@ -102,7 +94,6 @@ void session::close()
     }
 }
 
-//server::server(boost::asio::io_context &io_context, short port, Retransmittor& r):
 server::server(boost::asio::io_context &io_context, short port, OtusSQLServer& r):
     m_acceptor(io_context, tcp::endpoint(tcp::v4(), port)),
     m_query_server{r}

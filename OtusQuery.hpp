@@ -1,10 +1,7 @@
 #pragma once
 
-#include <iostream>
 #include <string>
-#include <vector>
-#include <cstdarg>
-#include <exception>
+#include <unordered_map>
 
 #include "QueryConverter.hpp"
 
@@ -16,15 +13,10 @@ class OtusQuery: public QueryConverter
 public:
     OtusQuery();
 
-//private:
-    virtual std::pair<sql_cmd_t, sql_t> convert_sql(const sql_t& sql) override;
+    virtual convert_result_t convert_sql(sql_t sql) override;
 private:
-    sql_t intersection();
-    sql_t symmetric_difference();
-    sql_t insert(const sql_cmd_t& cmd);
-    sql_t truncate(const sql_cmd_t& cmd);
-    sql_t print(const sql_cmd_t& cmd);
-    sql_t list_of_tables();
+    using ftype = sql_t (*)(const std::vector<std::string>&);
+    std::unordered_map<std::size_t, ftype> m_map;
 };
 
 }

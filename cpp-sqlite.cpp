@@ -2,11 +2,13 @@
 #include <string>
 #include <cstdarg>
 
+#include "SQLiteDB.hpp"
 #include "OtusQuery.hpp"
 
 int main(int argc, char **argv)
 {
-    otus_db::OtusQuery db;
+    otus_db::SQLiteDB db{"cpp_sqlite_db.sqlite"};
+    otus_db::OtusQuery conv;
     if(!db.is_opened())
         return EXIT_FAILURE;
 
@@ -18,7 +20,9 @@ int main(int argc, char **argv)
             return 0;
         try
         {
-            const auto res{db.execute_query(q)};
+            //const auto cres{conv.convert_sql(std::move(q))};
+            const auto cres{conv.convert_sql(q)};
+            const auto res{db.execute_query(cres.second)};
             if(!res.second)
             {
                 std::cout << "Error: " << db.last_error_msg() << std::endl;
