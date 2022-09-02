@@ -23,6 +23,8 @@ exit
 | TRUNCATE [table_name] | ``` DELETE FROM [table_name]; ``` | clean table |
 | INTERSECTION | ``` SELECT A.id, A.name, B.name FROM A INNER JOIN B WHERE A.id = B.id ORDER BY A.id ASC; ``` | get intersection of tables |
 | SYMMETRIC_DIFFERENCE | ``` SELECT A.id, A.name FROM A WHERE A.id NOT IN (SELECT B.id FROM B) UNION ALL SELECT B.id, B.name FROM B WHERE B.id NOT IN (SELECT A.id FROM A) ORDER BY id ASC; ``` | get symmetric difference of tables |
+| PRINT | ``` SELECT * FROM A ORDER BY id ASC; ``` | print table A |
+| LIST |  ``` SELECT name FROM sqlite_master WHERE type='table'; ``` | print list of tables |
 
 ### Example
 
